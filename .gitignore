@@ -1,6 +1,26 @@
+# Virtual Environment
+riskradar_env/
+venv/
+.venv/
+
+# Python
 __pycache__/
 *.pyc
+*.pyo
+
+# Environment Variables
 .env
-chroma_db/
+
+# Mac
 .DS_Store
+
+# IDE
+.vscode/
+.idea/
+
+# FAISS / Vector DB
+faiss_index/
+chroma_db/
+
+# Logs
 *.log
