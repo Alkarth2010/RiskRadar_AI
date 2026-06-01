@@ -1,0 +1,29 @@
+RISKRADAR AI - FRAUD INVESTIGATION POLICY
+Policy ID: RR-VEL-002
+Version: 3.0
+Effective: 2024-12-15
+Category: Velocity & Burst Pattern Detection
+
+1. PURPOSE
+Detect rapid transaction sequences indicative of account takeover, card testing, or automated attacks.
+
+2. VELOCITY WINDOWS & LIMITS
+- 5 minutes: >3 transactions OR cumulative value > ₹12,000
+- 30 minutes: >5 transactions OR cumulative value > ₹30,000
+- 2 hours: >10 transactions OR cumulative value > ₹60,000
+- 24 hours: >20 transactions OR value > 5x customer's 30-day daily average
+
+3. HIGH-RISK PATTERNS
+- Card testing: 4+ small (<₹300) attempts in <15 minutes, especially after declines
+- ATO burst: Sudden activity after 7+ days of dormancy with >600% velocity increase
+- Money mule layering: Rapid movement across multiple merchant categories in <90 minutes
+
+4. EXEMPTIONS
+Recurring mandates, salary credits, verified bill payments, and intra-account transfers do not trigger velocity alerts alone.
+
+5. AI AGENT GUIDANCE
+When velocity is detected, the agent must:
+- Rebuild exact chronological timeline
+- Distinguish card-testing (small incremental) vs ATO (large erratic) patterns
+- Retrieve similar historical velocity cases via RAG
+- Recommend hold + step-up auth or block with clear justification

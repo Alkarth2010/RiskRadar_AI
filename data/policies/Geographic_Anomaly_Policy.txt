@@ -1,0 +1,31 @@
+RISKRADAR AI - FRAUD INVESTIGATION POLICY
+Policy ID: RR-GEO-003
+Version: 2.1
+Effective: 2025-03-05
+Category: Geographic & Travel Anomaly Detection
+
+1. PURPOSE
+Identify transactions that violate reasonable travel or location expectations based on customer history.
+
+2. RISK TIERS
+- Low: Within 150km of last known location or declared home cities
+- Medium: Different Indian city >400km away with <5hr travel window
+- High: First-time international transaction
+- Critical: Impossible travel (e.g., Mumbai to New York in <7 hours)
+
+3. IMPOSSIBLE TRAVEL CALCULATION
+Minimum flight time + 4 hours buffer (check-in, immigration, ground transport). Any pair violating this rule receives +40 risk points and hold recommendation.
+
+4. COUNTRY TIERS
+- Tier 1 (Low): India, Singapore, UAE, USA, UK, Germany, Japan, Australia, Canada
+- Tier 2 (Elevated): Malaysia, Thailand, Indonesia, South Africa, Brazil
+- Tier 3 (Critical): Nigeria, Pakistan, Russia, sanctioned jurisdictions
+
+Tier 3 international transactions always require Level-2 review.
+
+5. AI REQUIREMENTS
+- Retrieve customer's full 90-day location history
+- Calculate exact impossible-travel pairs
+- Check for VPN/proxy indicators
+- Surface prior travel declarations from CRM
+- Recommend "Legitimate travel", "Hold for callback", or "Block" with supporting evidence

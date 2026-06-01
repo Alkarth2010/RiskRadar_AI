@@ -1,0 +1,48 @@
+# RiskRadar AI - IIT Roorkee AIOps Capstone Project
+# Theme 13: AI Fraud Transaction Investigation Assistant
+# Week 1 Requirements
+
+# Core AI / Agent Frameworks
+langchain>=0.3.0
+langgraph>=0.2.0
+langchain-openai>=0.2.0
+langchain-community>=0.3.0
+
+# LLM Provider
+openai>=1.50.0
+
+# Vector DB / RAG
+chromadb>=0.5.0
+
+# Data Processing
+pandas>=2.2.0
+numpy>=1.26.0
+python-dateutil>=2.9.0
+
+# PDF Processing
+pypdf>=5.0.0
+
+# AWS (for future integrations)
+boto3>=1.35.0
+
+# Environment & Config
+python-dotenv>=1.0.0
+pydantic>=2.9.0
+
+# App & UI
+streamlit>=1.38.0
+plotly>=5.24.0
+matplotlib>=3.9.0
+seaborn>=0.13.0
+
+# Utilities
+tqdm>=4.66.0
+requests>=2.32.0
+faker>=28.0.0
+
+# Notebooks & Dev
+jupyter>=1.1.0
+ipykernel>=6.29.0
+
+# Testing (future)
+pytest>=8.3.0

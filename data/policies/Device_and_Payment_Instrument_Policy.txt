@@ -1,0 +1,32 @@
+RISKRADAR AI - FRAUD INVESTIGATION POLICY
+Policy ID: RR-DEV-004
+Version: 1.9
+Effective: 2025-02-28
+Category: Device Fingerprinting & New Payment Instrument Risk
+
+1. PURPOSE
+Control risk from new or unrecognized devices and newly added payment methods.
+
+2. DEVICE TRUST LEVELS
+- Trusted: Seen in last 30 days + successful 2FA
+- Known: Seen in last 90 days
+- New: First appearance for customer
+- High-Risk: Previously linked to fraud on any account (device graph)
+- Suspicious: Signals consistent with emulation or automation
+
+3. NEW PAYMENT INSTRUMENT RULES
+Any transaction using a card/UPI/bank account added < 72 hours ago:
+- +25 minimum risk points
+- Mandatory step-up authentication (OTP + push) unless pre-whitelisted
+- 48-hour cooling period for high-value or international use
+
+4. COMBINED TRIGGERS (AUTO-HOLD)
+- New device + new payment method + amount > ₹7,500
+- New device + Tier-2/3 country transaction
+- Device change + velocity cluster in same hour
+
+5. AI AGENT INSTRUCTIONS
+- Compare new device fingerprint similarity to all known customer devices
+- Check device graph for use on other accounts
+- Surface exact device registration time vs transaction time
+- Recommend: mark trusted, require step-up, block + force password reset, or escalate

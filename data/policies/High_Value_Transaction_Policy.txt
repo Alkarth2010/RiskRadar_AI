@@ -1,0 +1,34 @@
+RISKRADAR AI - FRAUD INVESTIGATION POLICY
+Policy ID: RR-HV-001
+Version: 2.4
+Effective: 2025-01-10
+Category: High-Value Transaction Monitoring
+
+1. PURPOSE
+Define risk thresholds and investigation triggers for high-value transactions that exceed normal customer behavior.
+
+2. THRESHOLDS
+- Alert Level 1: Single transaction > ₹25,000 or equivalent foreign currency
+- Alert Level 2: Single transaction > ₹50,000
+- Alert Level 3: Single transaction > ₹1,00,000 (mandatory manual + AI review)
+
+3. AUTOMATIC RISK BOOST SIGNALS
+- Amount > 3x customer's 90-day average transaction value
+- New payment instrument added in last 72 hours
+- International merchant or location with no prior history
+- Transaction between 00:00-05:30 IST
+- Customer account age < 60 days
+
+4. REQUIRED INVESTIGATION STEPS
+- Pull customer 90-day transaction velocity and location history
+- Verify device fingerprint against known devices
+- Cross-check merchant risk score
+- Review recent KYC / address change activity
+
+5. ESCALATION
+- Risk Score 50-70: AI recommendation, auto-approve if clean
+- Risk Score 71-85: Level-1 analyst review within 20 minutes
+- Risk Score >85: Immediate hold + Level-2 review + customer outreach
+
+6. AI AGENT RULES
+The AI must always cite specific policy clauses and surface similar past resolved cases. Never recommend block without at least two independent risk signals.
