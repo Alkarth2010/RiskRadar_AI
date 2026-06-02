@@ -17,3 +17,5 @@ class InvestigationState(TypedDict):
     recommended_action: str
 
     action_reason: str
+
+    error: str

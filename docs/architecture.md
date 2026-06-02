@@ -1,113 +1,353 @@
-# RiskRadar AI — System Architecture & Agent Workflow
+# RiskRadar AI — System Architecture & Workflow
 
-**IIT Roorkee AIOps Capstone Project — Theme 13**  
-**Version**: 0.1 (Week 1)  
-**Last Updated**: 2025-10-06
+**IIT Roorkee AIOps Capstone Project — Theme 13**
+**Project:** RiskRadar AI – Fraud Transaction Investigation Assistant
+**Version:** 1.0 (Week 2 Complete)
+**Last Updated:** June 2026
 
 ---
 
-## 1. High-Level Architecture
+# 1. High-Level Architecture
 
+```text
+                    RiskRadar AI
+
+┌────────────────────────────────────────────┐
+│              Fraud Alert Input             │
+└───────────────────┬────────────────────────┘
+                    │
+                    ▼
+┌────────────────────────────────────────────┐
+│          LangGraph Orchestrator            │
+└───────────────────┬────────────────────────┘
+                    │
+                    ▼
+┌────────────────────────────────────────────┐
+│          Risk Analysis Node                │
+│                                            │
+│ • Policy Trigger Detection                 │
+│ • Weighted Risk Scoring                    │
+│ • Risk Classification                      │
+└───────────────────┬────────────────────────┘
+                    │
+                    ▼
+┌────────────────────────────────────────────┐
+│          Policy Retrieval Node             │
+│                                            │
+│ • FAISS Vector Search                      │
+│ • Gemini Embeddings                        │
+│ • Policy Context Retrieval                 │
+└───────────────────┬────────────────────────┘
+                    │
+                    ▼
+┌────────────────────────────────────────────┐
+│         Investigation Summary Node         │
+│                                            │
+│ • Gemini 2.5 Flash                         │
+│ • Risk Reasoning                           │
+│ • Investigation Summary                    │
+└───────────────────┬────────────────────────┘
+                    │
+                    ▼
+┌────────────────────────────────────────────┐
+│          Recommendation Node               │
+│                                            │
+│ • ESCALATE                                 │
+│ • MONITOR                                  │
+│ • APPROVE                                  │
+└───────────────────┬────────────────────────┘
+                    │
+                    ▼
+┌────────────────────────────────────────────┐
+│       Structured Investigation Output      │
+└────────────────────────────────────────────┘
 ```
-┌─────────────────────────────────────────────────────────────────────┐
-│                    STREAMLIT INVESTIGATION UI                        │
-│   (Alert Queue | Transaction Detail | Agent Trace | What-If | Feedback)
-└─────────────────────────────────────────────────────────────────────┘
-                                   │
-                                   ▼
-┌─────────────────────────────────────────────────────────────────────┐
-│                    LANGGRAPH ORCHESTRATOR                            │
-│  Supervisor (Router) → Planner → Executor (with conditional edges)   │
-└─────────────────────────────────────────────────────────────────────┘
-                                   │
-          ┌────────────────────────┼────────────────────────┐
-          ▼                        ▼                        ▼
-┌──────────────────┐   ┌──────────────────────┐   ┌──────────────────┐
-│  RAG RETRIEVER   │   │  STRUCTURED DATA     │   │  TOOLS / MCP     │
-│  (Policies +     │   │  LOADER (Pandas)     │   │  (Future)        │
-│   Past Cases)    │   │  Customer 360        │   │                  │
-└──────────────────┘   └──────────────────────┘   └──────────────────┘
-          │                        │
-          ▼                        ▼
-   ┌──────────────┐         ┌──────────────┐
-   │  ChromaDB    │         │  transactions│
-   │  (Vector)    │         │  .csv        │
-   └──────────────┘         └──────────────┘
+
+---
+
+# 2. Current System Components
+
+## 2.1 Fraud Alert Layer
+
+Input to the system is a structured fraud alert.
+
+Example:
+
+```python
+{
+    "transaction_id": "TXN001",
+    "amount": 250000,
+    "country": "Russia",
+    "new_device": True,
+    "transactions_last_10min": 15
+}
 ```
 
-**Design Principles**
-- Agentic & multi-step reasoning (not single LLM calls)
-- Every recommendation must be grounded in policy text or data evidence
-- Full reasoning trace visible to the human analyst
-- Human-in-the-loop at key decision points
+Validation is performed using Pydantic models.
 
 ---
 
-## 2. Core Components
+## 2.2 Risk Analysis Engine
 
-### 2.1 Data Layer
-- `data/synthetic/transactions.csv` — 200 realistic bank transactions (26 labeled fraud)
-- `data/policies/*.txt` — 4 detailed fraud investigation policies
-- Future: Customer profiles, historical cases, device graph
+The Risk Analysis Node performs:
 
-### 2.2 RAG Subsystem (`src/rag/`)
-- Policy document loader + chunker (LangChain text splitters)
-- ChromaDB vector store with OpenAI embeddings
-- Metadata-aware hybrid retrieval
-- Citation engine that returns policy ID + section for explainability
+* Policy trigger detection
+* Weighted risk scoring
+* Risk classification
 
-### 2.3 Agent Layer (`src/agents/`)
-Planned LangGraph nodes:
-- `intake_node` — Load transaction + enrich with customer aggregates
-- `policy_retriever_node` — Semantic search over policies + past cases
-- `evidence_gatherer` — Velocity, geo, device, amount signals
-- `risk_scorer` — Composite risk score (rules + LLM judgment)
-- `recommendation_agent` — Final decision (Approve / Hold / Block) + rationale + citations
-- `critic_node` (optional) — Self-critique for policy violations or hallucinations
+### Policy Triggers
 
-State is defined in a TypedDict (`state.py`) containing transaction, context, retrieved policies, signals, risk_score, recommendation, full trace, and human feedback fields.
+| Policy                      | Condition                      |
+| --------------------------- | ------------------------------ |
+| High Value Transaction      | Amount > ₹100,000              |
+| Geographic Anomaly          | High-risk country              |
+| Velocity & Burst Detection  | >10 transactions in 10 minutes |
+| Device & Payment Instrument | New device detected            |
 
-### 2.4 Streamlit UI (`streamlit_app/`)
-Planned views:
-- Alert queue with filters
-- Investigation workspace showing agent trace, policy citations, similar cases
-- What-if simulator (change amount/location/device → re-run agent)
-- Analyst feedback capture for continuous improvement
+### Policy Weights
 
----
+| Policy                      | Weight |
+| --------------------------- | ------ |
+| High Value Transaction      | 30     |
+| Geographic Anomaly          | 25     |
+| Velocity & Burst Detection  | 25     |
+| Device & Payment Instrument | 20     |
 
-## 3. Agent Workflow (High-Level)
+### Risk Levels
 
-1. **Intake & Context Assembly** — Load txn + compute customer 360 view
-2. **Parallel Tool Calls** — Evidence extraction + Policy RAG
-3. **Risk Scoring** — Weighted combination of rule signals + LLM assessment
-4. **Recommendation Generation** — Decision + 3-bullet rationale + required actions + citations
-5. **Self-Critique** (optional) — Check for contradictions with policies
-6. **Human Review** — Analyst sees full trace, accepts / overrides / asks clarifying question
-7. **Feedback Loop** — Store outcome for future RAG augmentation
+```text
+3+ triggered policies → HIGH
+
+Score >= 70 → HIGH
+
+Score >= 20 → MEDIUM
+
+Else → LOW
+```
 
 ---
 
-## 4. Technology Stack
+## 2.3 RAG Subsystem
 
-| Component              | Technology                     |
-|------------------------|--------------------------------|
-| Agent Framework        | LangGraph 0.2+                 |
-| LLM                    | OpenAI GPT-4o / GPT-4o-mini    |
-| Embeddings             | text-embedding-3-small         |
-| Vector DB              | ChromaDB (local)               |
-| UI                     | Streamlit + Plotly             |
-| Data Processing        | pandas + pydantic              |
+The RAG subsystem provides policy-grounded investigation support.
+
+### Policy Repository
+
+```text
+data/policies/
+
+├── High_Value_Transaction_Policy.txt
+├── Geographic_Anomaly_Policy.txt
+├── Velocity_and_Burst_Detection_Policy.txt
+└── Device_and_Payment_Instrument_Policy.txt
+```
+
+### Retrieval Pipeline
+
+```text
+Policy Files
+      ↓
+Document Loader
+      ↓
+Chunking
+      ↓
+Gemini Embeddings
+      ↓
+FAISS Vector Store
+      ↓
+Similarity Retrieval
+      ↓
+Policy Context
+```
 
 ---
 
-## 5. Security & Auditability
+## 2.4 Investigation Summary Node
 
-- API keys only via environment variables
-- All reasoning steps logged with timestamps
-- Every recommendation includes explicit policy citations
-- Synthetic data only — no real PII in repository
+Uses:
+
+```text
+Gemini 2.5 Flash
+```
+
+Responsibilities:
+
+* Generate risk reasoning
+* Generate investigation summary
+* Explain detected fraud indicators
+
+Fallback handling is implemented for quota exhaustion or model failures.
 
 ---
 
-**Status**: Week 1 foundation complete. Agent implementation begins Week 2.
+## 2.5 Recommendation Engine
+
+Produces final investigator action:
+
+| Risk Level | Recommendation |
+| ---------- | -------------- |
+| HIGH       | ESCALATE       |
+| MEDIUM     | MONITOR        |
+| LOW        | APPROVE        |
+
+Each recommendation includes an explanation based on triggered policies.
+
+---
+
+# 3. LangGraph Workflow
+
+Current LangGraph StateGraph:
+
+```text
+risk_analysis
+      ↓
+retrieval
+      ↓
+summary
+      ↓
+recommendation
+      ↓
+END
+```
+
+Each node updates a shared investigation state object.
+
+---
+
+# 4. Data Models
+
+## FraudAlert
+
+```python
+FraudAlert
+```
+
+Fields:
+
+* transaction_id
+* amount
+* country
+* new_device
+* transactions_last_10min
+* merchant_category
+
+---
+
+## InvestigationResult
+
+```python
+InvestigationResult
+```
+
+Fields:
+
+* risk_score
+* risk_reasoning
+* triggered_policies
+* investigation_summary
+* recommended_action
+* action_reason
+* sources
+
+---
+
+# 5. Technology Stack
+
+| Component              | Technology           |
+| ---------------------- | -------------------- |
+| Workflow Orchestration | LangGraph            |
+| LLM                    | Gemini 2.5 Flash     |
+| Embeddings             | Gemini Embedding 001 |
+| Vector Database        | FAISS                |
+| RAG Framework          | LangChain            |
+| Data Validation        | Pydantic             |
+| Data Processing        | Pandas               |
+| Language               | Python 3.9           |
+
+---
+
+# 6. Testing Status
+
+Validated scenarios:
+
+### Scenario 1
+
+High Value + High Risk Geography + Velocity + New Device
+
+Result:
+
+```text
+HIGH
+ESCALATE
+```
+
+### Scenario 2
+
+New Device Only
+
+Result:
+
+```text
+MEDIUM
+MONITOR
+```
+
+### Scenario 3
+
+Normal Transaction
+
+Result:
+
+```text
+LOW
+APPROVE
+```
+
+### Scenario 4
+
+High Value + Geographic Anomaly
+
+Result:
+
+```text
+MEDIUM
+MONITOR
+```
+
+---
+
+# 7. Current Project Status
+
+## Week 2 Day 1
+
+✅ RAG Pipeline Complete
+
+* Policy loading
+* Embeddings
+* FAISS indexing
+* Retrieval
+
+## Week 2 Day 2
+
+✅ Fraud Investigation Workflow Complete
+
+* Risk Engine
+* Policy Detection
+* LangGraph Workflow
+* Investigation Summary
+* Recommendation Engine
+* Scenario Testing
+
+---
+
+# 8. Planned Enhancements
+
+* Streamlit Investigation Dashboard
+* LangGraph Workflow Visualization
+* Investigation Report Export
+* Historical Case Retrieval
+* Analyst Feedback Loop
+
+---
+
+**Status:** Week 2 Complete – Working LangGraph-based Fraud Investigation Assistant

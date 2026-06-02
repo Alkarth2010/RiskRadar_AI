@@ -24,5 +24,11 @@ for alert in SAMPLE_ALERTS:
     for source in result.sources:
         print(f" - {source}")
 
+    print("\nRisk Reasoning:")
+    print(result.risk_reasoning)
+
+    print("\nInvestigation Summary:")
+    print(result.investigation_summary)   
+
     print("\n")
     

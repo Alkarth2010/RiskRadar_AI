@@ -25,3 +25,5 @@ class InvestigationResult(BaseModel):
     sources: List[str]
 
     action_reason: str
+
+    error: str = ""

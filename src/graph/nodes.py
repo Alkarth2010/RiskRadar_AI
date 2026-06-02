@@ -4,6 +4,9 @@ from src.fraud.models import FraudAlert
 
 from src.fraud.models import FraudAlert
 
+import logging
+
+logger = logging.getLogger(__name__)
 
 def risk_analysis_node(state):
 
@@ -26,7 +29,7 @@ from src.rag.rag_pipeline import RiskRadarRAG
 rag = RiskRadarRAG()
 
 
-def retrieval_node(state):
+'''def retrieval_node(state):
 
     policies = state["triggered_policies"]
 
@@ -43,7 +46,54 @@ def retrieval_node(state):
     return {
         "retrieved_context": result["context"],
         "sources": result["sources"]
-    }
+    }'''
+
+from typing import Any
+
+def retrieval_node(state):
+
+    triggered_policies = state.get(
+        "triggered_policies",
+        []
+    )
+
+    # No policies triggered → skip retrieval
+    if not triggered_policies:
+
+        return {
+            "retrieved_context": "",
+            "sources": [],
+            "error": ""
+        }
+
+    try:
+
+        rag_result = rag.retrieve_policy_context(
+            triggered_policies
+        )
+
+        return {
+            "retrieved_context":
+                rag_result.get("context", ""),
+
+            "sources":
+                rag_result.get("sources", []),
+
+            "error": ""
+        }
+
+    except Exception as e:
+
+        logger.error(
+            f"RAG retrieval failed: {e}"
+        )
+
+        return {
+            "retrieved_context": "",
+            "sources": [],
+            "error":
+                f"RAG retrieval failed: {str(e)}"
+        }
 
 from langchain_google_genai import ChatGoogleGenerativeAI
 from dotenv import load_dotenv
@@ -54,7 +104,8 @@ load_dotenv()
 llm = ChatGoogleGenerativeAI(
     model="gemini-2.5-flash",
     google_api_key=os.getenv("GOOGLE_API_KEY"),
-    temperature=0.2
+    temperature=0.2,
+    max_retries=1
 )
 
 
@@ -98,31 +149,43 @@ Rules:
 - Do not include recommendations outside the investigation summary.
 """
 
-    response = llm.invoke(prompt)
-
-    text = response.content
-
     try:
 
-        parts = text.split("INVESTIGATION_SUMMARY:")
+        response = llm.invoke(prompt)
+
+        text = response.content
+
+        parts = text.split(
+            "INVESTIGATION_SUMMARY:"
+        )
 
         reasoning = (
             parts[0]
-            .replace("RISK_REASONING:", "")
+            .replace(
+                "RISK_REASONING:",
+                ""
+            )
             .strip()
         )
 
         summary = parts[1].strip()
 
-    except Exception:
+        return {
+            "risk_reasoning": reasoning,
+            "investigation_summary": summary,
+            "error": ""
+        }
 
-        reasoning = text
-        summary = text
+    except Exception as e:
 
-    return {
-        "risk_reasoning": reasoning,
-        "investigation_summary": summary
-    }
+        return {
+            "risk_reasoning":
+                "Unable to generate AI reasoning due to model quota limits.",
+
+            "investigation_summary":
+                "Investigation summary unavailable. Review triggered policies manually.",
+
+        }
 
 def recommendation_node(state):
 
