@@ -1,4 +1,9 @@
+import warnings
+warnings.filterwarnings("ignore", category=FutureWarning)
+
 import os
+os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
+os.environ["OMP_NUM_THREADS"] = "1"
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -87,6 +92,48 @@ class RiskRadarRAG:
                 )
 
         return documents
+    
+    def retrieve_policy_context(
+        self,
+        policy_names,
+        question="Provide investigation guidance"
+    ):
+        """
+        Retrieve context for specific policies.
+        """
+
+        retriever = self.vectorstore.as_retriever(
+            search_kwargs={"k": 5}
+        )
+
+        query = (
+            " ".join(policy_names)
+            + " "
+            + question
+        )
+
+        docs = retriever.invoke(query)
+
+        context = "\n\n".join(
+            [doc.page_content for doc in docs]
+        )
+
+        sources = list(
+            set(
+                [
+                    doc.metadata.get(
+                        "source",
+                        "unknown"
+                    ).split("/")[-1]
+                    for doc in docs
+                ]
+            )
+        )
+
+        return {
+            "context": context,
+            "sources": sources
+        }
 
     def _create_vectorstore(self):
 
