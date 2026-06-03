@@ -18,4 +18,6 @@ class InvestigationState(TypedDict):
 
     action_reason: str
 
+    agent_trace: List[str]
+
     error: str

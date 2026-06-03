@@ -6,11 +6,14 @@ Provides helpers to load the synthetic transactions dataset.
 
 import pandas as pd
 from pathlib import Path
+from typing import Union
 
-DEFAULT_PATH = Path(__file__).resolve().parents[3] / "data" / "synthetic" / "transactions.csv"
+DEFAULT_PATH = Path(__file__).resolve().parents[2] / "data" / "synthetic" / "transactions.csv"
 
 
-def load_transactions(csv_path: str | Path = None) -> pd.DataFrame:
+def load_transactions(
+    csv_path: Union[str, Path] = None
+) -> pd.DataFrame:
     """Load synthetic bank transactions."""
     path = Path(csv_path) if csv_path else DEFAULT_PATH
     if not path.exists():

@@ -21,7 +21,12 @@ def risk_analysis_node(state):
 
     return {
         "risk_score": result["risk_level"],
-        "triggered_policies": result["triggered_policies"]
+        "triggered_policies": result["triggered_policies"],
+        "agent_trace": [
+            "Transaction loaded",
+            f"Risk assessment completed ({result['risk_level']})",
+            f"{len(result['triggered_policies'])} policy violations detected"
+        ]
     }
 
 from src.rag.rag_pipeline import RiskRadarRAG
@@ -72,12 +77,24 @@ def retrieval_node(state):
             triggered_policies
         )
 
+        trace = state.get(
+            "agent_trace",
+            []
+        )
+
+        trace.append(
+            f"Policy retrieval completed ({len(rag_result.get('sources', []))} documents)"
+        )
+
         return {
             "retrieved_context":
                 rag_result.get("context", ""),
 
             "sources":
                 rag_result.get("sources", []),
+
+            "agent_trace":
+                trace,
 
             "error": ""
         }
@@ -109,7 +126,7 @@ llm = ChatGoogleGenerativeAI(
 )
 
 
-def summary_node(state):
+'''def summary_node(state):
 
     prompt = f"""
 You are a senior fraud investigation analyst at a financial institution.
@@ -170,13 +187,32 @@ Rules:
 
         summary = parts[1].strip()
 
+        trace = state.get(
+            "agent_trace",
+            []
+        )
+
+        trace.append(
+            "Investigation summary generated"
+        )
+
         return {
             "risk_reasoning": reasoning,
             "investigation_summary": summary,
+            "agent_trace": trace,
             "error": ""
         }
 
     except Exception as e:
+
+        trace = state.get(
+            "agent_trace",
+            []
+        )
+
+        trace.append(
+            "Investigation summary generation failed"
+        )
 
         return {
             "risk_reasoning":
@@ -185,7 +221,99 @@ Rules:
             "investigation_summary":
                 "Investigation summary unavailable. Review triggered policies manually.",
 
-        }
+            "agent_trace":
+                trace,
+
+            "error": str(e)
+        }'''
+
+#### Alternative summary node with deterministic logic to avoid LLM dependency during testing and development
+# This can be used as a fallback or for unit testing the workflow without relying on the LLM.
+# In production, the LLM-based summary_node can be used for richer insights.
+ 
+def summary_node(state):
+
+    risk = state.get("risk_score", "LOW")
+    policies = state.get("triggered_policies", [])
+    alert = state.get("alert", {})
+
+    findings = []
+
+    if "High_Value_Transaction_Policy" in policies:
+        findings.append(
+            f"High-value transaction detected (Amount: ₹{alert.get('amount'):,})."
+        )
+
+    if "Velocity_and_Burst_Detection_Policy" in policies:
+        findings.append(
+            "Velocity anomaly detected based on transaction burst activity."
+        )
+
+    if "Geographic_Anomaly_Policy" in policies:
+        findings.append(
+            f"Geographic anomaly detected ({alert.get('country')})."
+        )
+
+    if "Device_and_Payment_Instrument_Policy" in policies:
+        findings.append(
+            "Transaction originated from a new or untrusted device."
+        )
+
+    if not findings:
+        findings.append(
+            "No significant fraud indicators detected."
+        )
+
+    reasoning = "\n".join(
+        [f"- {x}" for x in findings]
+    )
+
+    investigation_actions = []
+
+    if "High_Value_Transaction_Policy" in policies:
+        investigation_actions.append(
+            "- Review customer's historical transaction amounts."
+        )
+
+    if "Geographic_Anomaly_Policy" in policies:
+        investigation_actions.append(
+            "- Verify whether the customer is currently in the transaction country."
+        )
+
+    if "Velocity_and_Burst_Detection_Policy" in policies:
+        investigation_actions.append(
+            "- Reconstruct timeline of recent transactions."
+        )
+
+    if "Device_and_Payment_Instrument_Policy" in policies:
+        investigation_actions.append(
+            "- Confirm ownership of the new device."
+        )
+
+    investigation_actions.append(
+        "- Perform step-up authentication."
+    )
+
+    summary = "\n".join(
+        investigation_actions
+    )
+
+    trace = state.get(
+        "agent_trace",
+        []
+    )
+
+    trace.append(
+        "Investigation summary generated"
+    )
+
+    return {
+        "risk_reasoning": reasoning,
+        "investigation_summary": summary,
+        "agent_trace": trace,
+        "error": ""
+    }
+
 
 def recommendation_node(state):
 
@@ -227,7 +355,17 @@ def recommendation_node(state):
             "No material fraud indicators identified."
         )
 
+    trace = state.get(
+        "agent_trace",
+        []
+    )
+
+    trace.append(
+        f"Recommendation generated: {action}"
+    )
+    
     return {
         "recommended_action": action,
-        "action_reason": reason
+        "action_reason": reason,
+        "agent_trace": trace
     }

@@ -9,6 +9,7 @@ class FraudAlert(BaseModel):
     new_device: bool
     transactions_last_10min: int
     merchant_category: Optional[str] = None
+    triggered_rules: Optional[list[str]] = None
 
 
 class InvestigationResult(BaseModel):

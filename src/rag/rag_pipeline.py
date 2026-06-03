@@ -13,9 +13,8 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 from langchain_community.vectorstores import FAISS
 
-from langchain_google_genai import (
-    GoogleGenerativeAIEmbeddings,
-    ChatGoogleGenerativeAI
+from langchain_community.embeddings import (
+    HuggingFaceEmbeddings
 )
 
 
@@ -37,15 +36,8 @@ class RiskRadarRAG:
 
         print("Initializing Gemini models...")
 
-        self.embeddings = GoogleGenerativeAIEmbeddings(
-            model="models/gemini-embedding-001",
-            google_api_key=self.api_key
-        )
-
-        self.llm = ChatGoogleGenerativeAI(
-            model="gemini-2.5-flash",
-            google_api_key=self.api_key,
-            temperature=0.2
+        self.embeddings = HuggingFaceEmbeddings(
+            model_name="sentence-transformers/all-MiniLM-L6-v2"
         )
 
         self.vectorstore = self._load_or_create_vectorstore()
@@ -223,28 +215,3 @@ Answer:
                 "sources": []
             }
 
-
-if __name__ == "__main__":
-
-    rag = RiskRadarRAG()
-
-    print("\nRiskRadar RAG Ready")
-
-    while True:
-
-        question = input(
-            "\nAsk a policy question (q to quit): "
-        )
-
-        if question.lower() == "q":
-            break
-
-        result = rag.query(question)
-
-        print("\nANSWER")
-        print("-" * 60)
-        print(result["answer"])
-
-        print("\nSOURCES")
-        print("-" * 60)
-        print(result["sources"])
