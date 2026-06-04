@@ -1,21 +1,93 @@
 from src.fraud.risk_engine import calculate_risk
 from src.fraud.models import FraudAlert
 
-
-from src.fraud.models import FraudAlert
-
 import logging
 
 logger = logging.getLogger(__name__)
 
-def risk_analysis_node(state):
+
+RULE_TO_POLICY = {
+    "High Value Transaction":
+        "High_Value_Transaction_Policy",
+
+    "New Device":
+        "Device_and_Payment_Instrument_Policy",
+
+    "Velocity Spike":
+        "Velocity_and_Burst_Detection_Policy",
+
+    "Geographic Anomaly":
+        "Geographic_Anomaly_Policy"
+}
+
+HIGH_RISK_COUNTRIES = {
+    "Russia",
+    "North Korea",
+    "Iran"
+}
+
+
+def _load_alert(state):
 
     raw_alert = state["alert"]
 
     if isinstance(raw_alert, FraudAlert):
-        alert = raw_alert
-    else:
-        alert = FraudAlert(**raw_alert)
+        return raw_alert
+
+    return FraudAlert(**raw_alert)
+
+
+def _derive_policies_from_rules(alert):
+    triggered_rules = alert.triggered_rules or []
+
+    policies = list(
+        {
+            RULE_TO_POLICY[rule]
+            for rule in triggered_rules
+            if rule in RULE_TO_POLICY
+        }
+    )
+
+    if policies:
+        return policies
+
+    fallback_policies = []
+
+    if alert.amount > 100000:
+        fallback_policies.append(
+            "High_Value_Transaction_Policy"
+        )
+
+    if alert.new_device:
+        fallback_policies.append(
+            "Device_and_Payment_Instrument_Policy"
+        )
+
+    if alert.transactions_last_10min > 10:
+        fallback_policies.append(
+            "Velocity_and_Burst_Detection_Policy"
+        )
+
+    if alert.country in HIGH_RISK_COUNTRIES:
+        fallback_policies.append(
+            "Geographic_Anomaly_Policy"
+        )
+
+    return list(set(fallback_policies))
+
+
+def alert_intake_node(state):
+    return {
+        "agent_trace": [
+            "Alert intake completed",
+            "Parallel fraud analysis started"
+        ]
+    }
+
+
+def risk_scoring_node(state):
+
+    alert = _load_alert(state)
 
     result = calculate_risk(alert)
 
@@ -23,15 +95,15 @@ def risk_analysis_node(state):
         "risk_score": result["risk_level"],
         "triggered_policies": result["triggered_policies"],
         "agent_trace": [
-            "Transaction loaded",
-            f"Risk assessment completed ({result['risk_level']})",
-            f"{len(result['triggered_policies'])} policy violations detected"
+            f"Risk scoring analyst completed ({result['risk_level']})"
         ]
     }
 
-from src.rag.rag_pipeline import RiskRadarRAG
 
-rag = RiskRadarRAG()
+def risk_analysis_node(state):
+    return risk_scoring_node(state)
+
+rag = None
 
 
 '''def retrieval_node(state):
@@ -53,14 +125,11 @@ rag = RiskRadarRAG()
         "sources": result["sources"]
     }'''
 
-from typing import Any
+def policy_evidence_node(state):
 
-def retrieval_node(state):
+    alert = _load_alert(state)
 
-    triggered_policies = state.get(
-        "triggered_policies",
-        []
-    )
+    triggered_policies = _derive_policies_from_rules(alert)
 
     # No policies triggered → skip retrieval
     if not triggered_policies:
@@ -68,22 +137,22 @@ def retrieval_node(state):
         return {
             "retrieved_context": "",
             "sources": [],
+            "agent_trace": [
+                "Policy evidence analyst completed (0 documents)"
+            ],
             "error": ""
         }
 
     try:
+        global rag
+
+        if rag is None:
+            from src.rag.rag_pipeline import RiskRadarRAG
+
+            rag = RiskRadarRAG()
 
         rag_result = rag.retrieve_policy_context(
             triggered_policies
-        )
-
-        trace = state.get(
-            "agent_trace",
-            []
-        )
-
-        trace.append(
-            f"Policy retrieval completed ({len(rag_result.get('sources', []))} documents)"
         )
 
         return {
@@ -94,7 +163,10 @@ def retrieval_node(state):
                 rag_result.get("sources", []),
 
             "agent_trace":
-                trace,
+                [
+                    "Policy evidence analyst completed "
+                    f"({len(rag_result.get('sources', []))} documents)"
+                ],
 
             "error": ""
         }
@@ -108,23 +180,16 @@ def retrieval_node(state):
         return {
             "retrieved_context": "",
             "sources": [],
+            "agent_trace": [
+                "Policy evidence analyst failed; fallback evidence path used"
+            ],
             "error":
                 f"RAG retrieval failed: {str(e)}"
         }
 
-from langchain_google_genai import ChatGoogleGenerativeAI
-from dotenv import load_dotenv
-import os
 
-load_dotenv()
-
-llm = ChatGoogleGenerativeAI(
-    model="gemini-2.5-flash",
-    google_api_key=os.getenv("GOOGLE_API_KEY"),
-    temperature=0.2,
-    max_retries=1
-)
-
+def retrieval_node(state):
+    return policy_evidence_node(state)
 
 '''def summary_node(state):
 
@@ -231,13 +296,64 @@ Rules:
 # This can be used as a fallback or for unit testing the workflow without relying on the LLM.
 # In production, the LLM-based summary_node can be used for richer insights.
  
-def summary_node(state):
+def behavioral_pattern_node(state):
+
+    alert = _load_alert(state)
+
+    findings = []
+
+    if alert.amount > 2500:
+        findings.append(
+            f"High amount observed (Amount: ₹{alert.amount:,.2f})."
+        )
+
+    if alert.new_device:
+        findings.append(
+            "New device indicator present."
+        )
+
+    if alert.transactions_last_10min >= 3:
+        findings.append(
+            f"Velocity pattern observed ({alert.transactions_last_10min} recent transactions)."
+        )
+
+    if alert.country:
+        findings.append(
+            f"Transaction location reviewed ({alert.country})."
+        )
+
+    if not findings:
+        findings.append(
+            "No additional behavioral anomalies identified."
+        )
+
+    return {
+        "behavioral_findings": findings,
+        "agent_trace": [
+            "Behavioral pattern analyst completed"
+        ]
+    }
+
+
+def evidence_fusion_node(state):
 
     risk = state.get("risk_score", "LOW")
     policies = state.get("triggered_policies", [])
     alert = state.get("alert", {})
+    behavioral_findings = state.get(
+        "behavioral_findings",
+        []
+    )
+    sources = state.get(
+        "sources",
+        []
+    )
 
     findings = []
+
+    findings.append(
+        f"Risk scoring classified the alert as {risk}."
+    )
 
     if "High_Value_Transaction_Policy" in policies:
         findings.append(
@@ -258,6 +374,8 @@ def summary_node(state):
         findings.append(
             "Transaction originated from a new or untrusted device."
         )
+
+    findings.extend(behavioral_findings)
 
     if not findings:
         findings.append(
@@ -294,25 +412,27 @@ def summary_node(state):
         "- Perform step-up authentication."
     )
 
+    if sources:
+        investigation_actions.append(
+            f"- Review retrieved policy evidence from {len(sources)} source document(s)."
+        )
+
     summary = "\n".join(
         investigation_actions
-    )
-
-    trace = state.get(
-        "agent_trace",
-        []
-    )
-
-    trace.append(
-        "Investigation summary generated"
     )
 
     return {
         "risk_reasoning": reasoning,
         "investigation_summary": summary,
-        "agent_trace": trace,
+        "agent_trace": [
+            "Evidence fusion completed"
+        ],
         "error": ""
     }
+
+
+def summary_node(state):
+    return evidence_fusion_node(state)
 
 
 def recommendation_node(state):
@@ -355,17 +475,11 @@ def recommendation_node(state):
             "No material fraud indicators identified."
         )
 
-    trace = state.get(
-        "agent_trace",
-        []
-    )
-
-    trace.append(
-        f"Recommendation generated: {action}"
-    )
-    
     return {
         "recommended_action": action,
         "action_reason": reason,
-        "agent_trace": trace
+        "agent_trace": [
+            f"Recommendation generated: {action}",
+            "Human decision pending"
+        ]
     }

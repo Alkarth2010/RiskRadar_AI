@@ -1,4 +1,5 @@
-from typing import TypedDict, List
+import operator
+from typing import Annotated, TypedDict, List
 
 
 class InvestigationState(TypedDict):
@@ -12,12 +13,14 @@ class InvestigationState(TypedDict):
     retrieved_context: str
     sources: List[str]
 
+    behavioral_findings: List[str]
+
     investigation_summary: str
 
     recommended_action: str
 
     action_reason: str
 
-    agent_trace: List[str]
+    agent_trace: Annotated[List[str], operator.add]
 
     error: str

@@ -4,9 +4,11 @@ from langgraph.graph import END
 from src.graph.state import InvestigationState
 
 from src.graph.nodes import (
-    risk_analysis_node,
-    retrieval_node,
-    summary_node,
+    alert_intake_node,
+    risk_scoring_node,
+    policy_evidence_node,
+    behavioral_pattern_node,
+    evidence_fusion_node,
     recommendation_node
 )
 
@@ -18,18 +20,28 @@ def build_workflow():
     )
 
     graph.add_node(
-        "risk_analysis",
-        risk_analysis_node
+        "alert_intake",
+        alert_intake_node
     )
 
     graph.add_node(
-        "retrieval",
-        retrieval_node
+        "risk_scoring",
+        risk_scoring_node
     )
 
     graph.add_node(
-        "summary",
-        summary_node
+        "policy_evidence",
+        policy_evidence_node
+    )
+
+    graph.add_node(
+        "behavioral_pattern",
+        behavioral_pattern_node
+    )
+
+    graph.add_node(
+        "evidence_fusion",
+        evidence_fusion_node
     )
 
     graph.add_node(
@@ -38,21 +50,35 @@ def build_workflow():
     )
 
     graph.set_entry_point(
-        "risk_analysis"
+        "alert_intake"
     )
 
     graph.add_edge(
-        "risk_analysis",
-        "retrieval"
+        "alert_intake",
+        "risk_scoring"
     )
 
     graph.add_edge(
-        "retrieval",
-        "summary"
+        "alert_intake",
+        "policy_evidence"
     )
 
     graph.add_edge(
-        "summary",
+        "alert_intake",
+        "behavioral_pattern"
+    )
+
+    graph.add_edge(
+        [
+            "risk_scoring",
+            "policy_evidence",
+            "behavioral_pattern",
+        ],
+        "evidence_fusion"
+    )
+
+    graph.add_edge(
+        "evidence_fusion",
         "recommendation"
     )
 

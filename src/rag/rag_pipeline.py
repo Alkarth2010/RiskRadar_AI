@@ -1,5 +1,10 @@
 import warnings
 warnings.filterwarnings("ignore", category=FutureWarning)
+warnings.filterwarnings(
+    "ignore",
+    message="The class `HuggingFaceEmbeddings`.*",
+    category=Warning,
+)
 
 import os
 os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
@@ -214,4 +219,3 @@ Answer:
                 "answer": f"ERROR: {e}",
                 "sources": []
             }
-
