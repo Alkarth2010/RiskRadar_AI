@@ -1,7 +1,7 @@
 import csv
 from datetime import datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, Optional
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -11,7 +11,7 @@ FIELDNAMES = [
     "timestamp",
     "transaction_id",
     "customer_id",
-    "alert_severity",
+    "queue_priority",
     "system_risk_score",
     "system_recommendation",
     "analyst_decision",
@@ -20,6 +20,18 @@ FIELDNAMES = [
     "triggered_policies",
     "sources",
 ]
+
+
+def _format_queue_priority(value: str) -> str:
+    if not value:
+        return ""
+
+    normalized = value.strip().upper()
+
+    if normalized.endswith("_PRIORITY"):
+        return normalized
+
+    return f"{normalized}_PRIORITY"
 
 
 def _format_list(value: Any) -> str:
@@ -32,11 +44,47 @@ def _format_list(value: Any) -> str:
     return str(value)
 
 
+def _migrate_feedback_log_if_needed() -> None:
+    if not FEEDBACK_LOG_PATH.exists():
+        return
+
+    with FEEDBACK_LOG_PATH.open(
+        "r",
+        newline="",
+        encoding="utf-8",
+    ) as feedback_file:
+        reader = csv.DictReader(feedback_file)
+        existing_fieldnames = reader.fieldnames or []
+
+        if "alert_severity" not in existing_fieldnames:
+            return
+
+        rows = []
+
+        for row in reader:
+            row["queue_priority"] = _format_queue_priority(
+                row.pop("alert_severity", "")
+            )
+            rows.append(row)
+
+    with FEEDBACK_LOG_PATH.open(
+        "w",
+        newline="",
+        encoding="utf-8",
+    ) as feedback_file:
+        writer = csv.DictWriter(
+            feedback_file,
+            fieldnames=FIELDNAMES,
+            extrasaction="ignore",
+        )
+        writer.writeheader()
+        writer.writerows(rows)
+
+
 def save_feedback(
     *,
     transaction_id: str,
     customer_id: str,
-    alert_severity: str,
     system_risk_score: str,
     system_recommendation: str,
     analyst_decision: str,
@@ -44,19 +92,29 @@ def save_feedback(
     triggered_rules: list[str],
     triggered_policies: list[str],
     sources: list[str],
+    queue_priority: Optional[str] = None,
+    alert_severity: Optional[str] = None,
 ) -> Path:
     FEEDBACK_LOG_PATH.parent.mkdir(
         parents=True,
         exist_ok=True,
     )
 
+    _migrate_feedback_log_if_needed()
+
     file_exists = FEEDBACK_LOG_PATH.exists()
+    priority_value = queue_priority or alert_severity
+
+    if not priority_value:
+        raise ValueError(
+            "queue_priority is required to save analyst feedback."
+        )
 
     row = {
         "timestamp": datetime.now().isoformat(timespec="seconds"),
         "transaction_id": transaction_id,
         "customer_id": customer_id,
-        "alert_severity": alert_severity,
+        "queue_priority": _format_queue_priority(priority_value),
         "system_risk_score": system_risk_score,
         "system_recommendation": system_recommendation,
         "analyst_decision": analyst_decision,

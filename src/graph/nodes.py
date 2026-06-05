@@ -103,27 +103,9 @@ def risk_scoring_node(state):
 def risk_analysis_node(state):
     return risk_scoring_node(state)
 
+
 rag = None
 
-
-'''def retrieval_node(state):
-
-    policies = state["triggered_policies"]
-
-    if not policies:
-        return {
-            "retrieved_context": "",
-            "sources": []
-        }
-
-    result = rag.retrieve_policy_context(
-        policies
-    )
-
-    return {
-        "retrieved_context": result["context"],
-        "sources": result["sources"]
-    }'''
 
 def policy_evidence_node(state):
 
@@ -191,111 +173,8 @@ def policy_evidence_node(state):
 def retrieval_node(state):
     return policy_evidence_node(state)
 
-'''def summary_node(state):
 
-    prompt = f"""
-You are a senior fraud investigation analyst at a financial institution.
-
-Transaction Alert:
-{state['alert']}
-
-Risk Score:
-{state['risk_score']}
-
-Triggered Policies:
-{state['triggered_policies']}
-
-Policy Context:
-{state['retrieved_context']}
-
-Return your response EXACTLY in the following format:
-
-RISK_REASONING:
-- Bullet point 1
-- Bullet point 2
-- Bullet point 3
-(Maximum 5 bullets)
-
-INVESTIGATION_SUMMARY:
-- Finding 1
-- Finding 2
-- Finding 3
-- Recommended verification steps
-- Required investigation actions
-(Maximum 10 bullets)
-
-Rules:
-- Use concise professional fraud-investigation language.
-- Reference policy findings where relevant.
-- Do not include markdown headings other than the required labels.
-- Do not include recommendations outside the investigation summary.
-"""
-
-    try:
-
-        response = llm.invoke(prompt)
-
-        text = response.content
-
-        parts = text.split(
-            "INVESTIGATION_SUMMARY:"
-        )
-
-        reasoning = (
-            parts[0]
-            .replace(
-                "RISK_REASONING:",
-                ""
-            )
-            .strip()
-        )
-
-        summary = parts[1].strip()
-
-        trace = state.get(
-            "agent_trace",
-            []
-        )
-
-        trace.append(
-            "Investigation summary generated"
-        )
-
-        return {
-            "risk_reasoning": reasoning,
-            "investigation_summary": summary,
-            "agent_trace": trace,
-            "error": ""
-        }
-
-    except Exception as e:
-
-        trace = state.get(
-            "agent_trace",
-            []
-        )
-
-        trace.append(
-            "Investigation summary generation failed"
-        )
-
-        return {
-            "risk_reasoning":
-                "Unable to generate AI reasoning due to model quota limits.",
-
-            "investigation_summary":
-                "Investigation summary unavailable. Review triggered policies manually.",
-
-            "agent_trace":
-                trace,
-
-            "error": str(e)
-        }'''
-
-#### Alternative summary node with deterministic logic to avoid LLM dependency during testing and development
-# This can be used as a fallback or for unit testing the workflow without relying on the LLM.
-# In production, the LLM-based summary_node can be used for richer insights.
- 
+# Deterministic summary logic keeps tests and demos independent of LLM quota.
 def behavioral_pattern_node(state):
 
     alert = _load_alert(state)

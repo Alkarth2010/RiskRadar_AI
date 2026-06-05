@@ -37,9 +37,8 @@ class RiskRadarRAG:
             )
 
         self.policy_dir = "data/policies"
-        self.persist_dir = "chroma_db"
 
-        print("Initializing Gemini models...")
+        print("Initializing local embedding model...")
 
         self.embeddings = HuggingFaceEmbeddings(
             model_name="sentence-transformers/all-MiniLM-L6-v2"
@@ -89,7 +88,7 @@ class RiskRadarRAG:
                 )
 
         return documents
-    
+
     def retrieve_policy_context(
         self,
         policy_names,

@@ -4,6 +4,7 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 sys.path.append(str(PROJECT_ROOT))
 
+import pandas as pd
 import streamlit as st
 from src.fraud.alert_generator import generate_alerts
 
@@ -15,6 +16,7 @@ from src.graph.workflow import (
     build_workflow
 )
 from src.utils.feedback_logger import (
+    FEEDBACK_LOG_PATH,
     save_feedback
 )
 
@@ -30,6 +32,110 @@ st.caption(
 
 st.sidebar.header("🚨 Alert Queue")
 
+
+def format_queue_priority(severity):
+    if not severity:
+        return ""
+
+    normalized = str(severity).strip().upper()
+
+    if normalized.endswith("_PRIORITY"):
+        return normalized
+
+    return f"{normalized}_PRIORITY"
+
+
+def load_decision_history():
+    if not FEEDBACK_LOG_PATH.exists():
+        return pd.DataFrame()
+
+    try:
+        history = pd.read_csv(
+            FEEDBACK_LOG_PATH
+        )
+    except Exception:
+        return pd.DataFrame()
+
+    if history.empty:
+        return history
+
+    if (
+        "queue_priority" not in history.columns
+        and "alert_severity" in history.columns
+    ):
+        history["queue_priority"] = history[
+            "alert_severity"
+        ].apply(format_queue_priority)
+
+    if "queue_priority" in history.columns:
+        history["queue_priority"] = history[
+            "queue_priority"
+        ].fillna("").apply(format_queue_priority)
+
+    return history
+
+
+def get_handled_transaction_ids(history):
+    if (
+        history.empty
+        or "transaction_id" not in history.columns
+    ):
+        return set()
+
+    return set(
+        history["transaction_id"]
+        .dropna()
+        .astype(str)
+    )
+
+
+def render_decision_history(history):
+    st.divider()
+    st.subheader("Decision History")
+
+    if history.empty:
+        st.info(
+            "No analyst decisions have been saved yet."
+        )
+        return
+
+    display_columns = [
+        "timestamp",
+        "transaction_id",
+        "customer_id",
+        "queue_priority",
+        "system_risk_score",
+        "system_recommendation",
+        "analyst_decision",
+        "analyst_note",
+    ]
+
+    for column in display_columns:
+        if column not in history.columns:
+            history[column] = ""
+
+    recent_history = (
+        history[display_columns]
+        .tail(10)
+        .iloc[::-1]
+        .reset_index(drop=True)
+    )
+
+    st.caption(
+        "Recently handled alerts are removed from the active queue."
+    )
+    st.dataframe(
+        recent_history,
+        use_container_width=True,
+        hide_index=True,
+    )
+
+
+decision_history = load_decision_history()
+handled_transaction_ids = get_handled_transaction_ids(
+    decision_history
+)
+
 try:
     alerts = generate_alerts()
 except Exception:
@@ -38,11 +144,21 @@ except Exception:
     )
     st.stop()
 
+alerts = [
+    alert
+    for alert in alerts
+    if alert.transaction_id not in handled_transaction_ids
+]
+
 if not alerts:
     st.info(
-        "No alerts available."
+        "No active alerts available. Handled alerts are shown in Decision History."
+    )
+    render_decision_history(
+        decision_history
     )
     st.stop()
+
 
 severity_counts = {
     "HIGH": 0,
@@ -65,24 +181,27 @@ with metric_cols[0]:
 
 with metric_cols[1]:
     st.metric(
-        "HIGH Alerts",
+        "HIGH_PRIORITY",
         severity_counts.get("HIGH", 0),
     )
 
 with metric_cols[2]:
     st.metric(
-        "MEDIUM Alerts",
+        "MEDIUM_PRIORITY",
         severity_counts.get("MEDIUM", 0),
     )
 
 with metric_cols[3]:
     st.metric(
-        "LOW Alerts",
+        "LOW_PRIORITY",
         severity_counts.get("LOW", 0),
     )
 
 alert_options = {
-    f"{alert.severity} | {alert.transaction_id}": alert
+    (
+        f"{format_queue_priority(alert.severity)} | "
+        f"{alert.transaction_id}"
+    ): alert
     for alert in alerts
 }
 
@@ -107,6 +226,10 @@ def clear_investigation_state():
             key,
             None,
         )
+
+
+def set_analyst_decision(decision):
+    st.session_state["analyst_decision"] = decision
 
 
 if (
@@ -140,9 +263,9 @@ with overview_cols[2]:
     )
 
 with overview_cols[3]:
-    st.caption("Severity")
+    st.caption("Queue Priority")
     st.write(
-        f"**{selected_alert.severity}**"
+        f"**{format_queue_priority(selected_alert.severity)}**"
     )
 
 location_cols = st.columns(2)
@@ -160,7 +283,7 @@ for rule in selected_alert.triggered_rules:
 
 run_investigation = st.button(
     "🔍 Run Investigation"
-)    
+)
 
 if run_investigation:
 
@@ -249,7 +372,7 @@ if "investigation_result" in st.session_state:
 
     with result_cols[0]:
         st.metric(
-            "Risk Score",
+            "Workflow Risk",
             risk_score
         )
 
@@ -261,8 +384,8 @@ if "investigation_result" in st.session_state:
 
     with result_cols[2]:
         st.metric(
-            "Alert Severity",
-            investigated_alert.severity
+            "Queue Priority",
+            format_queue_priority(investigated_alert.severity)
         )
 
     st.divider()
@@ -311,23 +434,38 @@ if "investigation_result" in st.session_state:
         "Escalate",
     ]
 
-    for index, decision in enumerate(decisions):
-        with decision_cols[index]:
-            if st.button(
-                decision,
-                key=f"analyst_decision_{decision.lower()}",
-                use_container_width=True,
-            ):
-                st.session_state["analyst_decision"] = decision
-
     selected_decision = st.session_state.get(
         "analyst_decision",
         "Monitor",
     )
 
-    st.info(
-        f"Selected analyst decision: {selected_decision}"
-    )
+    for index, decision in enumerate(decisions):
+        with decision_cols[index]:
+            st.button(
+                decision,
+                key=f"analyst_decision_{decision.lower()}",
+                type=(
+                    "primary"
+                    if selected_decision == decision
+                    else "secondary"
+                ),
+                use_container_width=True,
+                on_click=set_analyst_decision,
+                args=(decision,),
+            )
+
+    if selected_decision == "Approve":
+        st.success(
+            "Selected analyst decision: APPROVE"
+        )
+    elif selected_decision == "Escalate":
+        st.warning(
+            "Selected analyst decision: ESCALATE"
+        )
+    else:
+        st.info(
+            "Selected analyst decision: MONITOR"
+        )
 
     analyst_note = st.text_area(
         "Analyst note / override reason",
@@ -343,7 +481,9 @@ if "investigation_result" in st.session_state:
             feedback_path = save_feedback(
                 transaction_id=investigated_alert.transaction_id,
                 customer_id=investigated_alert.customer_id,
-                alert_severity=investigated_alert.severity,
+                alert_severity=format_queue_priority(
+                    investigated_alert.severity
+                ),
                 system_risk_score=risk_score,
                 system_recommendation=recommended_action,
                 analyst_decision=selected_decision.upper(),
@@ -360,8 +500,10 @@ if "investigation_result" in st.session_state:
             clear_investigation_state()
             st.rerun()
 
-        except Exception:
+        except Exception as e:
             st.error(
-                "Feedback could not be saved."
+                f"Feedback could not be saved: {e}"
             )
-    
+render_decision_history(
+    load_decision_history()
+)

@@ -42,11 +42,14 @@ RiskRadar_AI/
 │       ├── Geographic_Anomaly_Policy.txt
 │       └── Device_and_Payment_Instrument_Policy.txt
 ├── src/
-│   ├── agents/                       # LangGraph agents (to be built)
-│   ├── rag/                          # Policy RAG + ChromaDB
+│   ├── fraud/                        # Risk engine, alert models, investigation service
+│   ├── graph/                        # Parallel LangGraph workflow and nodes
+│   ├── rag/                          # Policy RAG + FAISS
+│   ├── tests/                        # Scenario, workflow, alert, and E2E tests
 │   └── utils/                        # Data loaders, helpers
-├── streamlit_app/                    # Analyst investigation UI
+├── streamlit_app/                    # Analyst alert queue and investigation UI
 ├── docs/
+│   ├── week2_progress.md
 │   └── architecture.md
 ├── notebooks/                        # EDA and prototyping
 ├── README.md
@@ -72,7 +75,7 @@ source .venv/bin/activate
 pip install -r requirements.txt
 
 # Configure environment
-# Edit .env and add your real OPENAI_API_KEY
+# Edit .env and set GOOGLE_API_KEY for Gemini embeddings
 ```
 
 ### 2. Explore the Data
@@ -87,7 +90,7 @@ print(df[df['is_fraud']==1][['transaction_id','amount','fraud_type']].head())
 "
 ```
 
-### 3. Run Streamlit App (Week 2+)
+### 3. Run Streamlit App
 
 ```bash
 streamlit run streamlit_app/app.py
@@ -95,22 +98,37 @@ streamlit run streamlit_app/app.py
 
 ---
 
+## Current Capabilities
+
+- Generates fraud alerts from synthetic transaction data.
+- Runs a parallel LangGraph investigation workflow.
+- Scores risk using triggered policies and weighted rules.
+- Retrieves policy evidence with LangChain, local sentence-transformer embeddings, and FAISS.
+- Produces risk reasoning, investigation actions, and explainable recommendations.
+- Captures human analyst decisions and notes.
+- Logs feedback to `data/feedback_log.csv` for audit and future evaluation.
+- Removes handled transactions from the active queue and shows them in Decision History.
+- Displays alert metrics, agent trace, policy sources, investigation output, and handled decisions in Streamlit.
+
+---
+
 ## Key Technologies
 
 - **Agent Orchestration**: LangGraph
-- **LLM Framework**: LangChain + OpenAI (GPT-4o / GPT-4o-mini)
-- **Vector Store**: ChromaDB
+- **RAG Framework**: LangChain
+- **Embeddings**: sentence-transformers/all-MiniLM-L6-v2
+- **Vector Store**: FAISS
 - **UI**: Streamlit + Plotly
 - **Data**: pandas
 
 ---
 
-## Next Steps (Week 2+)
+## Next Steps
 
-- Implement LangGraph multi-agent workflow
-- Build ChromaDB policy RAG pipeline
-- Develop Streamlit investigation dashboard with agent traces
 - Add evaluation harness
+- Add investigation report export
+- Add workflow visualization
+- Add historical case retrieval
 
 ---
 

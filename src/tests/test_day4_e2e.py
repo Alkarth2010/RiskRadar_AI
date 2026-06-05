@@ -28,6 +28,10 @@ def _select_alerts_by_severity(alerts):
     return selected
 
 
+def _format_queue_priority(severity):
+    return f"{severity}_PRIORITY"
+
+
 def _assert_required_result_fields(result):
     missing_keys = [
         key
@@ -80,7 +84,7 @@ def _test_feedback_logging(alert, result):
         feedback_path = feedback_logger.save_feedback(
             transaction_id=alert.transaction_id,
             customer_id=alert.customer_id,
-            alert_severity=alert.severity,
+            queue_priority=_format_queue_priority(alert.severity),
             system_risk_score=result["risk_score"],
             system_recommendation=result["recommended_action"],
             analyst_decision="MONITOR",
@@ -97,7 +101,9 @@ def _test_feedback_logging(alert, result):
         )
 
         assert "transaction_id" in content
+        assert "queue_priority" in content
         assert alert.transaction_id in content
+        assert _format_queue_priority(alert.severity) in content
         assert "MONITOR" in content
         assert "Day 4 E2E test" in content
 
@@ -130,8 +136,9 @@ def main():
         _assert_parallel_trace(result)
 
         print(
-            f"{severity} alert {alert.transaction_id}: "
-            f"risk={result['risk_score']}, "
+            f"queue_priority={_format_queue_priority(severity)} "
+            f"transaction={alert.transaction_id}: "
+            f"workflow_risk={result['risk_score']}, "
             f"recommendation={result['recommended_action']}, "
             f"sources={len(result['sources'])}, "
             f"trace_steps={len(result['agent_trace'])}"

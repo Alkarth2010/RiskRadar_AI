@@ -2,7 +2,7 @@
 
 **IIT Roorkee AIOps Capstone Project — Theme 13**
 **Project:** RiskRadar AI – Fraud Transaction Investigation Assistant
-**Version:** 1.0 (Week 2 Complete)
+**Version:** 1.1 (Week 2 Day 4)
 **Last Updated:** June 2026
 
 ---
@@ -23,29 +23,30 @@
                     │
                     ▼
 ┌────────────────────────────────────────────┐
-│          Risk Analysis Node                │
+│              Alert Intake Node             │
 │                                            │
-│ • Policy Trigger Detection                 │
-│ • Weighted Risk Scoring                    │
-│ • Risk Classification                      │
+│ • Alert normalization                      │
+│ • Shared investigation state setup         │
+│ • Agent trace initialization               │
 └───────────────────┬────────────────────────┘
                     │
-                    ▼
+                    ├──────────────────────┬──────────────────────┐
+                    ▼                      ▼                      ▼
+┌────────────────────────────┐ ┌────────────────────────────┐ ┌────────────────────────────┐
+│    Risk Scoring Analyst    │ │  Policy Evidence Analyst   │ │ Behavioral Pattern Analyst │
+│                            │ │                            │ │                            │
+│ • Triggered policies       │ │ • FAISS policy retrieval   │ │ • Amount pattern review    │
+│ • Weighted risk scoring    │ │ • Gemini embeddings        │ │ • Device and velocity cues │
+│ • Risk classification      │ │ • Evidence source capture  │ │ • Location review          │
+└──────────────┬─────────────┘ └──────────────┬─────────────┘ └──────────────┬─────────────┘
+               └──────────────────────────────┼──────────────────────────────┘
+                                              ▼
 ┌────────────────────────────────────────────┐
-│          Policy Retrieval Node             │
+│             Evidence Fusion Node           │
 │                                            │
-│ • FAISS Vector Search                      │
-│ • Gemini Embeddings                        │
-│ • Policy Context Retrieval                 │
-└───────────────────┬────────────────────────┘
-                    │
-                    ▼
-┌────────────────────────────────────────────┐
-│         Investigation Summary Node         │
-│                                            │
-│ • Gemini 2.5 Flash                         │
-│ • Risk Reasoning                           │
-│ • Investigation Summary                    │
+│ • Risk reasoning                           │
+│ • Investigation summary                    │
+│ • Review actions and policy source summary │
 └───────────────────┬────────────────────────┘
                     │
                     ▼
@@ -87,9 +88,17 @@ Validation is performed using Pydantic models.
 
 ---
 
-## 2.2 Risk Analysis Engine
+## 2.2 Alert Intake
 
-The Risk Analysis Node performs:
+The alert intake node receives a structured alert and starts the shared
+LangGraph investigation state. It also initializes the agent trace that is
+displayed in the Streamlit investigation report.
+
+---
+
+## 2.3 Risk Scoring Analyst
+
+The risk scoring analyst performs:
 
 * Policy trigger detection
 * Weighted risk scoring
@@ -127,9 +136,12 @@ Else → LOW
 
 ---
 
-## 2.3 RAG Subsystem
+## 2.4 Policy Evidence Analyst
 
-The RAG subsystem provides policy-grounded investigation support.
+The policy evidence analyst provides policy-grounded investigation support.
+It derives policy names from alert rules, retrieves matching policy context,
+captures source documents for auditability, and falls back gracefully when
+retrieval is unavailable.
 
 ### Policy Repository
 
@@ -162,25 +174,34 @@ Policy Context
 
 ---
 
-## 2.4 Investigation Summary Node
+## 2.5 Behavioral Pattern Analyst
 
-Uses:
+The behavioral pattern analyst adds deterministic context about the alert:
 
-```text
-Gemini 2.5 Flash
-```
+* Amount pattern
+* New device indicator
+* Velocity pattern
+* Transaction country / location
 
-Responsibilities:
+---
+
+## 2.6 Evidence Fusion Node
+
+The evidence fusion node combines risk scoring, policy evidence, and
+behavioral findings into the final investigation narrative.
 
 * Generate risk reasoning
 * Generate investigation summary
 * Explain detected fraud indicators
+* Include recommended manual review actions
+* Reference the number of retrieved source documents when available
 
-Fallback handling is implemented for quota exhaustion or model failures.
+The current implementation uses deterministic fusion logic so tests and demos
+do not depend on LLM quota availability.
 
 ---
 
-## 2.5 Recommendation Engine
+## 2.7 Recommendation Engine
 
 Produces final investigator action:
 
@@ -199,18 +220,22 @@ Each recommendation includes an explanation based on triggered policies.
 Current LangGraph StateGraph:
 
 ```text
-risk_analysis
-      ↓
-retrieval
-      ↓
-summary
-      ↓
-recommendation
-      ↓
-END
+alert_intake
+      ├── risk_scoring
+      ├── policy_evidence
+      └── behavioral_pattern
+              ↓
+       evidence_fusion
+              ↓
+       recommendation
+              ↓
+            END
 ```
 
-Each node updates a shared investigation state object.
+The workflow uses a real fan-out/fan-in pattern. Risk scoring, policy evidence,
+and behavioral analysis run as parallel LangGraph branches after alert intake.
+Their outputs merge at evidence fusion before the final recommendation is
+generated.
 
 ---
 
@@ -230,6 +255,7 @@ Fields:
 * new_device
 * transactions_last_10min
 * merchant_category
+* triggered_rules
 
 ---
 
@@ -248,6 +274,28 @@ Fields:
 * recommended_action
 * action_reason
 * sources
+* error
+
+## InvestigationState
+
+```python
+InvestigationState
+```
+
+Fields:
+
+* alert
+* risk_score
+* risk_reasoning
+* triggered_policies
+* retrieved_context
+* sources
+* behavioral_findings
+* investigation_summary
+* recommended_action
+* action_reason
+* agent_trace
+* error
 
 ---
 
@@ -256,12 +304,13 @@ Fields:
 | Component              | Technology           |
 | ---------------------- | -------------------- |
 | Workflow Orchestration | LangGraph            |
-| LLM                    | Gemini 2.5 Flash     |
 | Embeddings             | Gemini Embedding 001 |
 | Vector Database        | FAISS                |
 | RAG Framework          | LangChain            |
 | Data Validation        | Pydantic             |
 | Data Processing        | Pandas               |
+| UI                     | Streamlit            |
+| Visualization          | Plotly               |
 | Language               | Python 3.9           |
 
 ---
@@ -338,16 +387,35 @@ MONITOR
 * Recommendation Engine
 * Scenario Testing
 
+## Week 2 Day 3
+
+✅ Alert Queue Workflow Complete
+
+* Alert generation from synthetic transactions
+* Queue-driven Streamlit investigation flow
+* Alert adapter between generated alerts and workflow input
+* Investigation report display
+
+## Week 2 Day 4
+
+✅ Parallel Workflow, Human Approval, and UI Polish Complete
+
+* Parallel LangGraph branches for risk scoring, policy evidence, and behavioral analysis
+* Evidence fusion node for final reasoning and investigation summary
+* Human-in-the-loop analyst decisions: APPROVE, MONITOR, ESCALATE
+* Analyst notes and feedback logging to `data/feedback_log.csv`
+* Streamlit error handling for common demo failure cases
+* Day 4 E2E validation for HIGH, MEDIUM, and LOW examples
+
 ---
 
 # 8. Planned Enhancements
 
-* Streamlit Investigation Dashboard
-* LangGraph Workflow Visualization
 * Investigation Report Export
 * Historical Case Retrieval
-* Analyst Feedback Loop
+* Evaluation Harness
+* LangGraph Workflow Visualization
 
 ---
 
-**Status:** Week 2 Complete – Working LangGraph-based Fraud Investigation Assistant
+**Status:** Week 2 Day 4 Complete – Working parallel LangGraph-based Fraud Investigation Assistant with Streamlit alert queue, policy evidence retrieval, human decision capture, and feedback logging.
