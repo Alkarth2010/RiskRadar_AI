@@ -75,7 +75,7 @@ source .venv/bin/activate
 pip install -r requirements.txt
 
 # Configure environment
-# Edit .env and set GOOGLE_API_KEY for Gemini embeddings
+# Optional LLM summaries use GOOGLE_API_KEY when USE_LLM_SUMMARY=true
 ```
 
 ### 2. Explore the Data
@@ -105,6 +105,7 @@ streamlit run streamlit_app/app.py
 - Scores risk using triggered policies and weighted rules.
 - Retrieves policy evidence with LangChain, local sentence-transformer embeddings, and FAISS.
 - Produces risk reasoning, investigation actions, and explainable recommendations.
+- Supports optional Gemini-assisted summaries with deterministic fallback.
 - Captures human analyst decisions and notes.
 - Logs feedback to `data/feedback_log.csv` for audit and future evaluation.
 - Removes handled transactions from the active queue and shows them in Decision History.
@@ -115,10 +116,11 @@ streamlit run streamlit_app/app.py
 ## Key Technologies
 
 - **Agent Orchestration**: LangGraph
+- **Optional LLM**: Gemini, controlled by `USE_LLM_SUMMARY`
 - **RAG Framework**: LangChain
 - **Embeddings**: sentence-transformers/all-MiniLM-L6-v2
 - **Vector Store**: FAISS
-- **UI**: Streamlit + Plotly
+- **UI**: Streamlit
 - **Data**: pandas
 
 ---

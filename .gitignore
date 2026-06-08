@@ -25,3 +25,7 @@ chroma_db/
 # Logs
 *.log
 data/feedback_log.csv
+
+# Local RFP reference files
+docs/rfp_aiops_capstone_extracted.txt
+docs/rfp_pages/

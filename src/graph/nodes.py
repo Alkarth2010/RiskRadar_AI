@@ -2,6 +2,9 @@ from src.fraud.risk_engine import calculate_risk
 from src.fraud.models import FraudAlert
 
 import logging
+import os
+
+from dotenv import load_dotenv
 
 logger = logging.getLogger(__name__)
 
@@ -175,6 +178,124 @@ def retrieval_node(state):
 
 
 # Deterministic summary logic keeps tests and demos independent of LLM quota.
+def _llm_summary_enabled():
+    load_dotenv()
+
+    return (
+        os.getenv(
+            "USE_LLM_SUMMARY",
+            "false"
+        ).strip().lower()
+        == "true"
+    )
+
+
+def _generate_llm_summary(
+    state,
+    deterministic_reasoning,
+    deterministic_summary,
+):
+    load_dotenv()
+
+    api_key = os.getenv("GOOGLE_API_KEY")
+
+    if not api_key:
+        raise ValueError(
+            "GOOGLE_API_KEY not found."
+        )
+
+    import google.generativeai as genai
+
+    genai.configure(
+        api_key=api_key
+    )
+
+    model_name = os.getenv(
+        "GEMINI_MODEL",
+        "gemini-2.5-flash"
+    )
+
+    model = genai.GenerativeModel(
+        model_name
+    )
+
+    prompt = f"""
+You are RiskRadar AI, a fraud investigation assistant.
+
+Rewrite the investigation output in concise professional language for a fraud analyst.
+Use only the facts provided below. Do not invent extra evidence.
+
+Alert:
+{state.get("alert", {})}
+
+Workflow Risk:
+{state.get("risk_score", "LOW")}
+
+Triggered Policies:
+{state.get("triggered_policies", [])}
+
+Behavioral Findings:
+{state.get("behavioral_findings", [])}
+
+Retrieved Policy Sources:
+{state.get("sources", [])}
+
+Policy Context:
+{state.get("retrieved_context", "")[:4000]}
+
+Deterministic Risk Reasoning:
+{deterministic_reasoning}
+
+Deterministic Investigation Summary:
+{deterministic_summary}
+
+Return the response exactly in this format:
+
+RISK_REASONING:
+- bullet 1
+- bullet 2
+- bullet 3
+
+INVESTIGATION_SUMMARY:
+- action 1
+- action 2
+- action 3
+"""
+
+    response = model.generate_content(
+        prompt
+    )
+
+    text = (response.text or "").strip()
+
+    if "INVESTIGATION_SUMMARY:" not in text:
+        raise ValueError(
+            "LLM response did not include the expected summary section."
+        )
+
+    reasoning_part, summary_part = text.split(
+        "INVESTIGATION_SUMMARY:",
+        1
+    )
+
+    reasoning = reasoning_part.replace(
+        "RISK_REASONING:",
+        ""
+    ).strip()
+
+    summary = summary_part.strip()
+
+    if not reasoning or not summary:
+        raise ValueError(
+            "LLM response was missing reasoning or summary text."
+        )
+
+    return {
+        "risk_reasoning": reasoning,
+        "investigation_summary": summary,
+    }
+
+
 def behavioral_pattern_node(state):
 
     alert = _load_alert(state)
@@ -300,12 +421,36 @@ def evidence_fusion_node(state):
         investigation_actions
     )
 
+    trace = [
+        "Evidence fusion completed"
+    ]
+
+    if _llm_summary_enabled():
+        try:
+            llm_result = _generate_llm_summary(
+                state,
+                reasoning,
+                summary,
+            )
+
+            reasoning = llm_result["risk_reasoning"]
+            summary = llm_result["investigation_summary"]
+            trace.append(
+                "LLM-assisted summary generated"
+            )
+
+        except Exception as e:
+            logger.warning(
+                f"LLM summary unavailable; deterministic summary used: {e}"
+            )
+            trace.append(
+                "LLM summary unavailable; deterministic summary used"
+            )
+
     return {
         "risk_reasoning": reasoning,
         "investigation_summary": summary,
-        "agent_trace": [
-            "Evidence fusion completed"
-        ],
+        "agent_trace": trace,
         "error": ""
     }
 

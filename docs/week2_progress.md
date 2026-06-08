@@ -157,6 +157,8 @@ Analysts can select generated fraud alerts from the dashboard and run a structur
   - Feedback save failure
 - Fixed stale investigation state so previous reports clear after feedback save or alert selection changes.
 - Improved UI wording so queue priority and workflow risk are not confused.
+- Added optional Gemini-assisted summary generation behind `USE_LLM_SUMMARY=true`.
+- Kept deterministic summary generation as the default path for free-tier quota safety.
 - Improved Streamlit layout for demo screenshots with alert metrics, cleaner alert overview, result metrics, section dividers, and a clearer Parallel Agent Trace section.
 - Added `src/tests/test_day4_e2e.py` for light end-to-end validation.
 
@@ -198,6 +200,13 @@ alert_intake
 - `behavioral_pattern`: adds deterministic findings about amount, device, velocity, and location.
 - `evidence_fusion`: merges risk, evidence, and behavior into reasoning and investigation actions.
 - `recommendation`: generates `ESCALATE`, `MONITOR`, or `APPROVE`.
+
+### Optional LLM Mode
+
+- Default: `USE_LLM_SUMMARY=false`
+- Final-demo option: set `USE_LLM_SUMMARY=true`
+- Model default: `GEMINI_MODEL=gemini-2.5-flash`
+- If Gemini quota, API, or response parsing fails, the workflow automatically uses deterministic reasoning and summary output.
 
 ---
 
@@ -314,6 +323,7 @@ streamlit run streamlit_app/app.py
 | Explainable fraud reasoning | Risk reasoning, investigation summary, triggered policies, and action reason |
 | Risk scoring | Weighted policy risk engine and workflow risk classification |
 | Policy-grounded evidence | FAISS-backed RAG retrieval from fraud policy documents |
+| LLM support | Optional Gemini-assisted summary generation with deterministic fallback |
 | Agentic workflow | LangGraph orchestration with parallel analyst branches |
 | Human approval / review | Analyst decision buttons, selected-state feedback, notes, and save action |
 | Auditability | Policy sources, agent trace, queue priority, workflow risk, and feedback log |
@@ -336,8 +346,9 @@ streamlit run streamlit_app/app.py
 
 ## Recommended Next Steps
 
-1. Add an evaluation harness for recommendation accuracy and evidence coverage.
-2. Add investigation report export for final report/demo use.
-3. Convert script-style tests into pytest-compatible tests.
-4. Capture final polished screenshots for the report and presentation after any remaining UI edits.
-5. Clean dependency/environment notes so the demo setup is easier to reproduce.
+1. Continue Week 3 tracking in `docs/week3_progress.md`.
+2. Add an evaluation harness for recommendation accuracy and evidence coverage if time allows.
+3. Add investigation report export for final report/demo use if time allows.
+4. Convert script-style tests into pytest-compatible tests if time allows.
+5. Use the captured screenshots in `docs/screenshots/week2_demo/` for the report and presentation.
+6. Clean dependency/environment notes so the demo setup is easier to reproduce.

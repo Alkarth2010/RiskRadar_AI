@@ -36,7 +36,7 @@
 │    Risk Scoring Analyst    │ │  Policy Evidence Analyst   │ │ Behavioral Pattern Analyst │
 │                            │ │                            │ │                            │
 │ • Triggered policies       │ │ • FAISS policy retrieval   │ │ • Amount pattern review    │
-│ • Weighted risk scoring    │ │ • Gemini embeddings        │ │ • Device and velocity cues │
+│ • Weighted risk scoring    │ │ • Local embeddings         │ │ • Device and velocity cues │
 │ • Risk classification      │ │ • Evidence source capture  │ │ • Location review          │
 └──────────────┬─────────────┘ └──────────────┬─────────────┘ └──────────────┬─────────────┘
                └──────────────────────────────┼──────────────────────────────┘
@@ -163,7 +163,7 @@ Document Loader
       ↓
 Chunking
       ↓
-Gemini Embeddings
+Local Sentence-Transformer Embeddings
       ↓
 FAISS Vector Store
       ↓
@@ -196,8 +196,10 @@ behavioral findings into the final investigation narrative.
 * Include recommended manual review actions
 * Reference the number of retrieved source documents when available
 
-The current implementation uses deterministic fusion logic so tests and demos
-do not depend on LLM quota availability.
+The default implementation uses deterministic fusion logic so tests and demos
+do not depend on LLM quota availability. An optional Gemini-assisted summary
+can be enabled with `USE_LLM_SUMMARY=true`; if the LLM call fails or quota is
+unavailable, the workflow falls back to the deterministic summary.
 
 ---
 
@@ -304,13 +306,13 @@ Fields:
 | Component              | Technology           |
 | ---------------------- | -------------------- |
 | Workflow Orchestration | LangGraph            |
-| Embeddings             | Gemini Embedding 001 |
+| Optional LLM           | Gemini               |
+| Embeddings             | sentence-transformers/all-MiniLM-L6-v2 |
 | Vector Database        | FAISS                |
 | RAG Framework          | LangChain            |
 | Data Validation        | Pydantic             |
 | Data Processing        | Pandas               |
 | UI                     | Streamlit            |
-| Visualization          | Plotly               |
 | Language               | Python 3.9           |
 
 ---
