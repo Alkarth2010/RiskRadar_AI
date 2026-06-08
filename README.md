@@ -14,21 +14,6 @@ The system aims to reduce investigation time while improving consistency, audita
 
 ---
 
-## Week 1 Deliverables (Completed)
-
-| # | Deliverable                              | Status |
-|---|------------------------------------------|--------|
-| 1 | Complete project folder structure        | ✅     |
-| 2 | requirements.txt with all required pkgs  | ✅     |
-| 3 | 200 realistic synthetic transactions     | ✅     |
-| 4 | 4 detailed fraud policy documents        | ✅     |
-| 5 | README.md + setup instructions           | ✅     |
-| 6 | .env configuration template              | ✅     |
-| 7 | docs/architecture.md                     | ✅     |
-| 8 | Week1_Progress.md (root)                 | ✅     |
-
----
-
 ## Repository Structure
 
 ```
