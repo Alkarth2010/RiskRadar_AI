@@ -50,7 +50,7 @@ RiskRadar_AI/
 ### 1. Setup
 
 ```bash
-cd /Users/karthikal/RiskRadar_AI
+cd /Users/**********/RiskRadar_AI
 
 # Create and activate virtual environment
 python3 -m venv .venv
@@ -60,7 +60,10 @@ source .venv/bin/activate
 pip install -r requirements.txt
 
 # Configure environment
-# Optional LLM summaries use GOOGLE_API_KEY when USE_LLM_SUMMARY=true
+# Optional LLM summaries use GOOGLE_API_KEY when USE_LLM_SUMMARY=false
+
+# Keep USE_LLM_SUMMARY=true. If there is enough credits.
+
 ```
 
 ### 2. Explore the Data
