@@ -31,11 +31,6 @@ class RiskRadarRAG:
 
         self.api_key = os.getenv("GOOGLE_API_KEY")
 
-        if not self.api_key:
-            raise ValueError(
-                "GOOGLE_API_KEY not found in .env"
-            )
-
         self.policy_dir = "data/policies"
 
         print("Initializing local embedding model...")
@@ -162,6 +157,11 @@ class RiskRadarRAG:
     def query(self, question):
 
         try:
+
+            if not self.api_key:
+                raise ValueError(
+                    "GOOGLE_API_KEY is required for LLM policy Q&A."
+                )
 
             retriever = self.vectorstore.as_retriever(
                 search_kwargs={"k": 3}

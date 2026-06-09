@@ -10,6 +10,7 @@ __pycache__/
 
 # Environment Variables
 .env
+*.pem
 
 # Mac
 .DS_Store
