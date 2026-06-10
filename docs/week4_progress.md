@@ -342,4 +342,4 @@ Captured evidence:
    - Final PPT
    - Demo recording
    - AWS deployment proof screenshots
-6. Submit before the final RFP deadline.
+6. Submit before the final RFP deadline (25 June 2026).
