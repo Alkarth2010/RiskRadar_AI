@@ -30,3 +30,6 @@ data/feedback_log.csv
 # Local RFP reference files
 docs/rfp_aiops_capstone_extracted.txt
 docs/rfp_pages/
+
+# Local Obsidian vault
+RiskRadar_AI_Obsidian_Vault/
