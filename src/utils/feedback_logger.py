@@ -3,9 +3,17 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Optional
 
+from src.utils.s3_storage import (
+    build_s3_key,
+    download_file,
+    upload_file,
+    use_s3_storage,
+)
+
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 FEEDBACK_LOG_PATH = PROJECT_ROOT / "data" / "feedback_log.csv"
+S3_FEEDBACK_KEY = build_s3_key("data/feedback/feedback_log.csv")
 
 FIELDNAMES = [
     "timestamp",
@@ -42,6 +50,25 @@ def _format_list(value: Any) -> str:
         return " | ".join(str(item) for item in value)
 
     return str(value)
+
+
+def sync_feedback_from_s3() -> Path:
+    if use_s3_storage():
+        download_file(
+            S3_FEEDBACK_KEY,
+            FEEDBACK_LOG_PATH,
+            required=False,
+        )
+
+    return FEEDBACK_LOG_PATH
+
+
+def sync_feedback_to_s3() -> None:
+    if use_s3_storage() and FEEDBACK_LOG_PATH.exists():
+        upload_file(
+            FEEDBACK_LOG_PATH,
+            S3_FEEDBACK_KEY,
+        )
 
 
 def _migrate_feedback_log_if_needed() -> None:
@@ -100,6 +127,7 @@ def save_feedback(
         exist_ok=True,
     )
 
+    sync_feedback_from_s3()
     _migrate_feedback_log_if_needed()
 
     file_exists = FEEDBACK_LOG_PATH.exists()
@@ -138,5 +166,7 @@ def save_feedback(
             writer.writeheader()
 
         writer.writerow(row)
+
+    sync_feedback_to_s3()
 
     return FEEDBACK_LOG_PATH

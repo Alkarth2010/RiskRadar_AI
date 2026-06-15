@@ -17,7 +17,8 @@ from src.graph.workflow import (
 )
 from src.utils.feedback_logger import (
     FEEDBACK_LOG_PATH,
-    save_feedback
+    save_feedback,
+    sync_feedback_from_s3,
 )
 
 st.set_page_config(
@@ -46,6 +47,8 @@ def format_queue_priority(severity):
 
 
 def load_decision_history():
+    sync_feedback_from_s3()
+
     if not FEEDBACK_LOG_PATH.exists():
         return pd.DataFrame()
 

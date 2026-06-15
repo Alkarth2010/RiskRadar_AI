@@ -22,6 +22,12 @@ from langchain_community.embeddings import (
     HuggingFaceEmbeddings
 )
 
+from src.utils.s3_storage import (
+    build_s3_key,
+    download_prefix,
+    use_s3_storage,
+)
+
 
 class RiskRadarRAG:
 
@@ -31,7 +37,17 @@ class RiskRadarRAG:
 
         self.api_key = os.getenv("GOOGLE_API_KEY")
 
-        self.policy_dir = "data/policies"
+        if use_s3_storage():
+            self.policy_dir = str(
+                Path(".cache") / "s3" / "data" / "policies"
+            )
+            download_prefix(
+                build_s3_key("data/policies/"),
+                Path(self.policy_dir),
+                suffix=".txt",
+            )
+        else:
+            self.policy_dir = "data/policies"
 
         print("Initializing local embedding model...")
 
