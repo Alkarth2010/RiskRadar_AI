@@ -3,15 +3,15 @@
 **Project:** RiskRadar AI - Fraud Transaction Investigation Assistant
 **Capstone Theme:** IIT Roorkee AIOps Capstone, Theme 13
 **RFP Week:** Week 4, 15 June 2026 to 25 June 2026
-**Current Work Date:** 10 June 2026
-**Status:** AWS EC2 deployment completed ahead of Week 4 schedule; final report, PPT, and recording pending
+**Current Work Date:** 15 June 2026
+**Status:** AWS EC2 deployment and S3-backed file storage completed; final report, PPT, and recording pending
 **Primary Goal:** Deploy the Streamlit dashboard on AWS, capture deployment proof, and prepare final submission artifacts.
 
 ---
 
 ## Executive Summary
 
-The RiskRadar AI Streamlit dashboard has been deployed on AWS EC2 and is accessible through the EC2 public IP on port `8501`. The deployment uses the pushed GitHub repository, a Python virtual environment, local FAISS policy retrieval, deterministic investigation summaries by default, and optional Gemini-assisted summaries behind a feature flag.
+The RiskRadar AI Streamlit dashboard has been deployed on AWS EC2 and is accessible through the EC2 public IP on port `8501`. The deployment uses the pushed GitHub repository, a Python virtual environment, S3-backed file storage, local FAISS policy retrieval, deterministic investigation summaries by default, and optional Gemini-assisted summaries behind a feature flag.
 
 The live deployment flow is:
 
@@ -19,6 +19,7 @@ The live deployment flow is:
 AWS EC2 instance
       -> GitHub project clone
       -> Python virtual environment
+      -> Amazon S3 file/document storage
       -> Streamlit app on port 8501
       -> public browser access
       -> live fraud investigation demo
@@ -37,7 +38,30 @@ AWS EC2 instance
 - **Instance type:** `t3.micro`
 - **Storage:** 20 GiB gp3 root volume
 - **Application port:** `8501`
-- **App URL:** `http://13.55.104.146:8501`
+- **App URL:** `http://3.27.206.137:8501`
+
+### S3 Storage Configuration
+
+- **Service:** Amazon S3
+- **Bucket:** `riskradar-ai-storage-alkarth`
+- **Prefix:** `riskradar/`
+- **IAM role attached to EC2:** `RiskRadarEC2S3Role`
+- **IAM policy:** `RiskRadarS3StoragePolicy`
+- **Storage mode flag:** `USE_S3_STORAGE=true`
+
+S3 object layout:
+
+```text
+s3://riskradar-ai-storage-alkarth/riskradar/data/synthetic/transactions.csv
+s3://riskradar-ai-storage-alkarth/riskradar/data/policies/
+s3://riskradar-ai-storage-alkarth/riskradar/data/feedback/feedback_log.csv
+```
+
+Purpose:
+
+- Store the synthetic transaction dataset outside the EC2 root disk.
+- Store fraud policy documents used by the RAG pipeline.
+- Persist analyst feedback and decision history as an audit file.
 
 ### Security Group Rules
 
@@ -66,7 +90,7 @@ The `8501` rule is required because Streamlit serves the dashboard on port `8501
 SSH access was configured using the EC2 private key:
 
 ```bash
-ssh -i /Users/karthikal/RiskRadar_AI/riskradar_key.pem ubuntu@13.55.104.146
+ssh -i /Users/karthikal/RiskRadar_AI/riskradar_key.pem ubuntu@3.27.206.137
 ```
 
 The private key file was protected locally with:
@@ -152,6 +176,10 @@ Created `.env` on EC2:
 USE_LLM_SUMMARY=false
 GEMINI_MODEL=gemini-2.5-flash
 GOOGLE_API_KEY=<configured on EC2 only>
+USE_S3_STORAGE=true
+AWS_REGION=ap-southeast-2
+S3_BUCKET=riskradar-ai-storage-alkarth
+S3_PREFIX=riskradar
 ```
 
 Default mode remains:
@@ -162,7 +190,64 @@ USE_LLM_SUMMARY=false
 
 This keeps normal demos deterministic and protects free-tier Gemini quota.
 
-### 9. Streamlit Startup
+### 9. S3 File Storage Setup
+
+Created the S3 bucket:
+
+```bash
+aws s3 mb s3://riskradar-ai-storage-alkarth --region ap-southeast-2
+```
+
+Uploaded the existing project data files:
+
+```bash
+aws s3 cp data/synthetic/transactions.csv \
+  s3://riskradar-ai-storage-alkarth/riskradar/data/synthetic/transactions.csv
+
+aws s3 cp data/policies/ \
+  s3://riskradar-ai-storage-alkarth/riskradar/data/policies/ \
+  --recursive
+
+aws s3 cp data/feedback_log.csv \
+  s3://riskradar-ai-storage-alkarth/riskradar/data/feedback/feedback_log.csv
+```
+
+Verified uploaded objects:
+
+```text
+riskradar/data/feedback/feedback_log.csv
+riskradar/data/policies/Device_and_Payment_Instrument_Policy.txt
+riskradar/data/policies/Geographic_Anomaly_Policy.txt
+riskradar/data/policies/High_Value_Transaction_Policy.txt
+riskradar/data/policies/Velocity_and_Burst_Detection_Policy.txt
+riskradar/data/synthetic/transactions.csv
+```
+
+Attached `RiskRadarEC2S3Role` to the EC2 instance and verified AWS identity:
+
+```text
+arn:aws:sts::614935468781:assumed-role/RiskRadarEC2S3Role/i-05bd02b4c98c239bc
+```
+
+Installed `boto3` in the project virtual environment and added it to `requirements.txt`.
+
+### 10. S3-Backed Code Updates
+
+Added reusable S3 storage helpers in:
+
+```text
+src/utils/s3_storage.py
+```
+
+Updated application storage behavior:
+
+- `src/utils/data_loader.py` downloads `transactions.csv` from S3 when `USE_S3_STORAGE=true`.
+- `src/rag/rag_pipeline.py` downloads policy `.txt` documents from S3 before building the FAISS index.
+- `src/utils/feedback_logger.py` syncs `feedback_log.csv` from S3 before writes and uploads the updated file back to S3.
+- `streamlit_app/app.py` refreshes Decision History from the S3-backed feedback log.
+- `.cache/` was added to `.gitignore` so downloaded S3 cache files are not committed.
+
+### 11. Streamlit Startup
 
 Started the deployed dashboard with:
 
@@ -203,7 +288,7 @@ Custom TCP | TCP | 8501 | Streamlit app
 
 Result:
 
-- Public browser access worked at `http://13.55.104.146:8501`.
+- Public browser access worked at `http://3.27.206.137:8501`.
 
 ### Issue 2: Policy Sources Blank on AWS
 
@@ -246,6 +331,43 @@ Reason:
 - Deterministic mode avoids unnecessary free-tier LLM usage during normal demos.
 - LLM mode can still be enabled for a final demo if needed.
 
+### Issue 4: EC2 Missing AWS Credentials
+
+The EC2 instance initially returned:
+
+```text
+NoCredentials: Unable to locate credentials
+```
+
+Root cause:
+
+- The EC2 instance did not have an IAM instance profile attached.
+
+Fix:
+
+- Created `RiskRadarS3StoragePolicy`.
+- Created `RiskRadarEC2S3Role`.
+- Attached the role to the running EC2 instance.
+
+Result:
+
+- EC2 can access S3 without storing AWS access keys on the server.
+
+### Issue 5: Exposed Gemini Key Rotated
+
+During deployment work, the existing Gemini key was treated as exposed.
+
+Fix:
+
+- Created a new Gemini API key.
+- Updated the EC2 `.env` file.
+- Restarted Streamlit.
+- Removed the old key from Google Cloud credentials.
+
+Result:
+
+- The deployed app works with the rotated key, and the exposed key is no longer active.
+
 ---
 
 ## Deployment Verification
@@ -255,7 +377,7 @@ Reason:
 The public deployed app responded successfully:
 
 ```bash
-curl -I http://13.55.104.146:8501
+curl -I http://3.27.206.137:8501
 ```
 
 Expected response:
@@ -274,6 +396,15 @@ Verified on deployed app:
 - Parallel agent trace displays.
 - Policy source documents display.
 - Decision History remains available.
+
+### S3 Storage Check
+
+Verified S3-backed application behavior:
+
+- `load_transactions()` returns `(200, 14)` from the S3-backed transaction CSV.
+- `RiskRadarRAG()` loads four policy documents from S3 and builds the FAISS index successfully.
+- `save_feedback()` appends analyst feedback locally and uploads the updated `feedback_log.csv` back to S3.
+- The live Streamlit app works after enabling `USE_S3_STORAGE=true`.
 
 ### LLM Mode Check
 
@@ -308,6 +439,7 @@ Captured evidence:
 | RFP Requirement | Current Status | Evidence |
 | --- | --- | --- |
 | AWS deployment | Complete | EC2 instance running and public Streamlit URL |
+| S3 document/file storage | Complete | Synthetic data, policy documents, and feedback log stored in S3 |
 | Frontend/dashboard | Complete | Streamlit dashboard deployed on EC2 |
 | Agent workflow | Complete | Live investigation runs through LangGraph workflow |
 | RAG pipeline | Complete | FAISS policy retrieval displays policy sources |
@@ -322,6 +454,8 @@ Captured evidence:
 
 - `USE_LLM_SUMMARY=false` is the recommended default for normal development and screenshots.
 - Gemini key is configured only on EC2 and must not be committed to GitHub.
+- S3 access is provided through the EC2 IAM role, not through stored AWS keys.
+- `.env`, `.pem`, `data/feedback_log.csv`, logs, and `.cache/` are ignored by git.
 - Security Group should be tightened after demo use if public access is no longer needed.
 - Current tests are script-style tests, not full pytest-collected tests.
 - Streamlit and dependency deprecation warnings appear in logs but do not block the deployed app.
