@@ -84,6 +84,36 @@ print(df[df['is_fraud']==1][['transaction_id','amount','fraud_type']].head())
 streamlit run streamlit_app/app.py
 ```
 
+### 4. Optional Docker Run
+
+RiskRadar AI can also be run as a Docker container for reproducible setup
+and deployment.
+
+Prerequisite: install Docker Desktop or another Docker-compatible runtime.
+For older macOS versions such as macOS 12 Monterey, Docker Desktop 4.25.2
+was used successfully during local validation.
+
+Build the image:
+
+```bash
+docker build -t riskradar-ai .
+```
+
+Run the app:
+
+```bash
+docker run --rm -p 8501:8501 --env-file .env -v "$PWD/data:/app/data" riskradar-ai
+```
+
+Open the Streamlit UI:
+
+```text
+http://localhost:8501
+```
+
+The `data` folder is mounted into the container so analyst feedback logs are
+persisted on the host machine.
+
 ---
 
 ## Current Capabilities
