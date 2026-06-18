@@ -2,16 +2,18 @@
 
 **Project:** RiskRadar AI - Fraud Transaction Investigation Assistant
 **Capstone Theme:** IIT Roorkee AIOps Capstone, Theme 13
-**RFP Week:** Week 4, 15 June 2026 to 25 June 2026
-**Current Work Date:** 15 June 2026
-**Status:** AWS EC2 deployment and S3-backed file storage completed; final report, PPT, and recording pending
-**Primary Goal:** Deploy the Streamlit dashboard on AWS, capture deployment proof, and prepare final submission artifacts.
+**RFP Week:** Week 4, 15 June 2026 to 30 June 2026
+**Current Work Date:** 18 June 2026
+**Status:** AWS EC2 deployment, S3-backed file storage, and optional Docker containerization completed; final report, PPT, and recording pending
+**Primary Goal:** Deploy the Streamlit dashboard on AWS, capture deployment proof, complete optional containerization support, and prepare final submission artifacts.
 
 ---
 
 ## Executive Summary
 
 The RiskRadar AI Streamlit dashboard has been deployed on AWS EC2 and is accessible through the EC2 public IP on port `8501`. The deployment uses the pushed GitHub repository, a Python virtual environment, S3-backed file storage, local FAISS policy retrieval, deterministic investigation summaries by default, and optional Gemini-assisted summaries behind a feature flag.
+
+Optional Docker containerization has also been added for reproducible local setup. The project can be built as a Docker image and run with two commands, without requiring Docker Compose.
 
 The live deployment flow is:
 
@@ -413,6 +415,38 @@ Verified:
 - `USE_LLM_SUMMARY=true` can run with Gemini key configured on EC2.
 - App was returned to `USE_LLM_SUMMARY=false` after test.
 
+### Docker Containerization Check
+
+Optional Docker support was added and validated locally.
+
+Added files:
+
+- `Dockerfile`
+- `.dockerignore`
+
+The Docker flow intentionally uses direct Docker CLI commands rather than
+`docker-compose.yml`.
+
+Build command:
+
+```bash
+docker build -t riskradar-ai .
+```
+
+Run command:
+
+```bash
+docker run --rm -p 8501:8501 --env-file .env -v "$PWD/data:/app/data" riskradar-ai
+```
+
+Verified:
+
+- Docker image build completed successfully.
+- Container started successfully.
+- Streamlit app loaded at `http://localhost:8501`.
+- `data/` was mounted into the container so analyst feedback can persist on the host machine.
+- Docker run instructions were added to `README.md`.
+
 ---
 
 ## Screenshot Evidence
@@ -444,6 +478,7 @@ Captured evidence:
 | Agent workflow | Complete | Live investigation runs through LangGraph workflow |
 | RAG pipeline | Complete | FAISS policy retrieval displays policy sources |
 | Human approval step | Complete | Analyst decision controls and Decision History available |
+| Optional Docker containerization | Complete | Dockerfile, .dockerignore, README commands, and verified local container run |
 | Error handling | Partially complete | Workflow fallback and UI warnings exist; final report should document this |
 | Screenshots/demo evidence | In progress | AWS deployment screenshots captured |
 | Final report/PPT/recording | Pending | Week 4 remaining work |
@@ -456,6 +491,7 @@ Captured evidence:
 - Gemini key is configured only on EC2 and must not be committed to GitHub.
 - S3 access is provided through the EC2 IAM role, not through stored AWS keys.
 - `.env`, `.pem`, `data/feedback_log.csv`, logs, and `.cache/` are ignored by git.
+- Docker is optional for the RFP submission and is documented as a two-command build/run flow, without Docker Compose.
 - Security Group should be tightened after demo use if public access is no longer needed.
 - Current tests are script-style tests, not full pytest-collected tests.
 - Streamlit and dependency deprecation warnings appear in logs but do not block the deployed app.
@@ -466,7 +502,7 @@ Captured evidence:
 
 1. Prepare final report using Week 1, Week 2, Week 3, and Week 4 progress documents.
 2. Add AWS deployment screenshots to the final report.
-3. Prepare final PPT with architecture, workflow, RAG, human approval, AWS deployment, and demo screenshots.
+3. Prepare final PPT with architecture, workflow, RAG, human approval, AWS deployment, optional Docker support, and demo screenshots.
 4. Record the final presentation/demo walkthrough.
 5. Package submission artifacts:
    - Source code
@@ -476,4 +512,6 @@ Captured evidence:
    - Final PPT
    - Demo recording
    - AWS deployment proof screenshots
-6. Submit before the final RFP deadline (25 June 2026).
+   - Dockerfile and Docker run instructions
+6. Keep all artifacts ready by the internal target date of 25 June 2026.
+7. Submit before the updated final RFP deadline of 30 June 2026.
